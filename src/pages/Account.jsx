@@ -1,25 +1,24 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useSelector, useDispatch } from "react-redux";
-import { updateUser } from "../features/user/userSlice";
+import { updateUser, logoutUser } from "../features/user/userSlice";
 import { getUserOrders, getOrderById, clearCurrentOrder } from "../features/orders/ordersSlice";
-
 import { FaUser, FaHeart, FaBell, FaShoppingBag, FaLock } from "react-icons/fa";
 import Wishlist from "./Wishlist";
-import api from '../api.js'
+import api from "../api.js";
+import { useNavigate } from "react-router-dom";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 const BACKEND_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:5001";
 
-
-const primary = "#001b3d"; // Deep Ocean
-const secondary = "#ff5757"; // Corel Red
+const primary = "#001b3d";
+const secondary = "#ff5757";
 
 const Account = () => {
   const dispatch = useDispatch();
   const { user, token } = useSelector((state) => state.user);
- 
   const { orders, currentOrder, orderLoading } = useSelector((state) => state.orders);
+
+  const navigate = useNavigate();
 
   const [fullname, setFullname] = useState(user?.fullname || "");
   const [mobile, setMobile] = useState(user?.mobile || "");
@@ -38,30 +37,16 @@ const Account = () => {
     { id: "password", label: "Update Password", icon: <FaLock /> },
   ];
 
-  // Fetch orders when orders tab is active
   useEffect(() => {
     if (activeTab === "orders" && user?.id) {
       dispatch(getUserOrders(user.id));
     }
   }, [activeTab, user?.id, dispatch]);
 
-  const handleViewOrder = (orderId) => {
-    setSelectedOrderId(orderId);
-    dispatch(getOrderById(orderId));
+  const handleLogout = () => {
+    dispatch(logoutUser());
+    navigate('/');
   };
-
-  const handleBackToOrders = () => {
-    setSelectedOrderId(null);
-    dispatch(clearCurrentOrder());
-  };
-
-  // Determine final profile image (backend may return full URL)
-  const finalProfile =
-    user?.profile?.startsWith("http")
-      ? user.profile
-      : user?.profile
-      ? `${BACKEND_URL}/uploads/${user.profile.replace("/uploads/", "")}`
-      : "/default-avatar.png";
 
   const handleProfileUpdate = async () => {
     const formData = new FormData();
@@ -91,10 +76,30 @@ const Account = () => {
     }
   };
 
+  const handleViewOrder = (orderId) => {
+    setSelectedOrderId(orderId);
+    dispatch(getOrderById(orderId));
+  };
+
+  const handleBackToOrders = () => {
+    setSelectedOrderId(null);
+    dispatch(clearCurrentOrder());
+  };
+
+  const finalProfile =
+    user?.profile?.startsWith("http")
+      ? user.profile
+      : user?.profile
+      ? `${BACKEND_URL}/uploads/${user.profile.replace("/uploads/", "")}`
+      : "/default-avatar.png";
+
   return (
     <div className="max-w-6xl mx-auto px-5 py-10 md:flex gap-10">
+      
       {/* SIDEBAR */}
       <div className="md:w-1/4 w-full mb-8 md:mb-0">
+        
+        {/* User Avatar */}
         <div className="flex flex-col items-center text-center mb-6">
           <img
             src={preview || finalProfile}
@@ -111,6 +116,7 @@ const Account = () => {
           <p className="text-gray-500 text-sm">{user?.mobile}</p>
         </div>
 
+        {/* Menu Buttons */}
         <div className="flex flex-col gap-2">
           {tabs.map((tab) => (
             <button
@@ -130,12 +136,26 @@ const Account = () => {
               {tab.label}
             </button>
           ))}
+
+          {/* LOGOUT BUTTON */}
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 p-3 rounded-md text-sm font-medium text-white"
+            style={{
+              backgroundColor: secondary,
+              borderColor: secondary,
+              marginTop: "10px",
+            }}
+          >
+            <FaLock />
+            Logout
+          </button>
         </div>
       </div>
 
       {/* CONTENT AREA */}
       <div className="md:w-3/4 w-full">
-        {/* MESSAGE */}
+
         {message && (
           <p
             className={`mb-4 text-center font-medium ${
@@ -175,6 +195,8 @@ const Account = () => {
                 handleProfileUpdate();
               }}
             >
+              
+              {/* Profile Image Upload */}
               <div className="flex flex-col items-center">
                 <img
                   src={preview || finalProfile}
@@ -206,6 +228,7 @@ const Account = () => {
                 </label>
               </div>
 
+              {/* Name */}
               <div>
                 <label className="block mb-1 font-medium" style={{ color: primary }}>
                   Full Name
@@ -218,6 +241,7 @@ const Account = () => {
                 />
               </div>
 
+              {/* Mobile */}
               <div>
                 <label className="block mb-1 font-medium" style={{ color: primary }}>
                   Mobile Number
@@ -283,16 +307,22 @@ const Account = () => {
                   ← Back to Orders
                 </button>
 
-                <h3 className="text-xl font-semibold mb-3">Order #{currentOrder.id}</h3>
+                <h3 className="text-xl font-semibold mb-3">
+                  Order #{currentOrder.id}
+                </h3>
+
                 <p><strong>Status:</strong> {currentOrder.orderStatus}</p>
                 <p><strong>Total:</strong> ₹{currentOrder.totalAmount}</p>
                 <p><strong>Date:</strong> {new Date(currentOrder.createdAt).toLocaleString()}</p>
 
                 <div className="mt-4 space-y-2">
                   {currentOrder.items.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between border-b pb-2">
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between border-b pb-2"
+                    >
                       <img
-                        src={item.imageUrl} // backend should return full URL
+                        src={item.imageUrl}
                         alt={item.productName}
                         className="w-16 h-16 object-cover rounded-md"
                       />
@@ -300,7 +330,9 @@ const Account = () => {
                         <p className="font-semibold">{item.productName}</p>
                         <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                       </div>
-                      <p className="font-semibold">₹{item.price * item.quantity}</p>
+                      <p className="font-semibold">
+                        ₹{item.price * item.quantity}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -334,9 +366,21 @@ const Account = () => {
             </h2>
 
             <form className="flex flex-col gap-4">
-              <input type="password" placeholder="Current Password" className="border p-3 rounded-md w-full" />
-              <input type="password" placeholder="New Password" className="border p-3 rounded-md w-full" />
-              <input type="password" placeholder="Confirm New Password" className="border p-3 rounded-md w-full" />
+              <input
+                type="password"
+                placeholder="Current Password"
+                className="border p-3 rounded-md w-full"
+              />
+              <input
+                type="password"
+                placeholder="New Password"
+                className="border p-3 rounded-md w-full"
+              />
+              <input
+                type="password"
+                placeholder="Confirm New Password"
+                className="border p-3 rounded-md w-full"
+              />
 
               <button
                 type="submit"
@@ -348,6 +392,7 @@ const Account = () => {
             </form>
           </div>
         )}
+
       </div>
     </div>
   );
