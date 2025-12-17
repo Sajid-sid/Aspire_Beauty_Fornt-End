@@ -5,7 +5,7 @@ import api from "../../api";
 // ✅ Fetch all products (already exists)
 export const fetchProducts = createAsyncThunk("products/fetchAll", async () => {
   const res = await api.get("/products");
-  
+  console.log(res.data);
   return res.data;
 });
 

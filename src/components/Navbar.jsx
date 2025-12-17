@@ -1,8 +1,13 @@
-import React, { useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
+
 import { logoutUser } from "../features/user/userSlice";
-import { setSearchTerm, resetAll } from "../features/filters/filterSlice";
+import {
+  setSearchTerm,
+  resetAll,
+  setCategory,
+} from "../features/filters/filterSlice";
 
 import navLogo from "../assets/navLogo.png";
 
@@ -15,28 +20,63 @@ import {
 } from "react-icons/io5";
 import { GrCart } from "react-icons/gr";
 
+const RECENT_LIMIT = 5;
+
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [search, setSearch] = useState("");
+  const [recentSearches, setRecentSearches] = useState([]);
+
+  const mobileSearchRef = useRef(null);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
   const { user, token } = useSelector((state) => state.user);
   const { totalItems } = useSelector((state) => state.cart);
 
-  const handleLogout = () => {
-    dispatch(logoutUser());
-    setShowDropdown(false);
+  /* ================= RECENT SEARCHES ================= */
+
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem("recentSearches")) || [];
+    setRecentSearches(stored);
+  }, []);
+
+  const saveRecentSearch = (term) => {
+    if (!term.trim()) return;
+    const updated = [
+      term,
+      ...recentSearches.filter((t) => t !== term),
+    ].slice(0, RECENT_LIMIT);
+
+    setRecentSearches(updated);
+    localStorage.setItem("recentSearches", JSON.stringify(updated));
   };
 
-  const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      dispatch(resetAll());
-      dispatch(setSearchTerm(search));
-      navigate("/products");
-      setMenuOpen(false);
-    }
+  /* ================= FILTER HANDLERS ================= */
+
+  const handleFaceCare = () => {
+    dispatch(resetAll());
+    dispatch(setCategory("Face Care"));
+    navigate("/products");
+  };
+
+  const handleFaceMakeup = () => {
+    dispatch(resetAll());
+    dispatch(setCategory("Face Makeup"));
+    navigate("/products");
+  };
+
+  /* ================= SEARCH ================= */
+
+  const handleSearch = (value) => {
+    if (!value.trim()) return;
+    dispatch(resetAll());
+    dispatch(setSearchTerm(value));
+    saveRecentSearch(value);
+    navigate("/products");
+    setMenuOpen(false);
   };
 
   const clearSearch = () => {
@@ -45,6 +85,16 @@ const Navbar = () => {
     dispatch(setSearchTerm(""));
     navigate("/products");
   };
+
+  /* ================= AUTH ================= */
+
+  const handleLogout = () => {
+    dispatch(logoutUser());
+    setShowDropdown(false);
+    setMenuOpen(false);
+  };
+
+  /* ================= AVATAR ================= */
 
   const renderAvatar = () => {
     const size = 26;
@@ -59,103 +109,92 @@ const Navbar = () => {
             style={{ width: size, height: size }}
           />
         );
-      } else {
-        const firstLetter = user?.fullname
-          ? user.fullname.charAt(0).toUpperCase()
-          : "U";
-        return (
-          <div
-            className="flex items-center justify-center rounded-full bg-gray-200 text-[#001b3d] font-medium"
-            style={{ width: size, height: size }}
-          >
-            {firstLetter}
-          </div>
-        );
       }
-    } else {
+
       return (
-        <FaRegUser
+        <div
+          className="flex items-center justify-center rounded-full bg-gray-200 text-[#001b3d] font-medium"
           style={{ width: size, height: size }}
-          className="text-[#001b3d]"
-        />
+        >
+          {user?.fullname?.charAt(0)?.toUpperCase() || "U"}
+        </div>
       );
     }
+
+    return <FaRegUser className="text-[#001b3d]" size={size} />;
   };
 
   return (
-    <nav className="shadow-md bg-white sticky top-0 z-50">
+    <nav className="bg-white shadow-md sticky top-0 z-50">
 
-      {/* ---------------- DESKTOP NAV (unchanged) ---------------- */}
-      <div className="hidden md:flex max-w-7xl mx-auto px-8 sm:px-10 py-3 justify-between items-center">
-
-        {/* Logo */}
-        <NavLink to="/" className="flex items-center gap-2 font-bold text-lg sm:text-xl">
-          <img className="w-30 h-20 object-contain" src={navLogo} alt="logo" />
+      {/* ================= DESKTOP NAV ================= */}
+      <div className="hidden lg:flex max-w-7xl mx-auto px-6 py-3 items-center gap-6">
+        <NavLink to="/" className="flex-shrink-0">
+          <img src={navLogo} alt="logo" className="h-16" />
         </NavLink>
 
-        {/* Center Links */}
-        <div className="flex items-center gap-8 text-[#001b3d] font-medium">
-          {["/", "/products", "/about"].map((path, index) => {
-            const names = ["Home", "Products", "About"];
-            return (
-              <NavLink
-                key={path}
-                to={path}
-                onClick={() => path === "/products" && dispatch(resetAll())}
-                className={({ isActive }) =>
-                  isActive
-                    ? "text-[#ff5757] border-b-2 border-[#ff5757] pb-1"
-                    : "hover:text-[#ff5757]"
-                }
-              >
-                {names[index]}
-              </NavLink>
-            );
-          })}
+        <div className="flex gap-6 text-[#001b3d] font-medium">
+          <NavLink to="/">Home</NavLink>
+          <button onClick={handleFaceCare}>Face Care</button>
+          <button onClick={handleFaceMakeup}>Face Makeup</button>
+          <NavLink to="/products" onClick={() => dispatch(resetAll())}>
+            Products
+          </NavLink>
+          <NavLink to="/about">About</NavLink>
         </div>
 
-        {/* Search */}
-        <div className="flex items-center bg-white rounded-full shadow-md px-4 py-2 w-full sm:w-96">
-          <FaSearch className="text-[#001b3d] mr-2" />
-          <input
-            type="text"
-            placeholder="Search for products..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            className="w-full bg-transparent outline-none text-sm text-[#001b3d]"
-          />
-          {search && (
-            <FaTimes
-              onClick={clearSearch}
-              className="ml-2 text-gray-400 hover:text-[#ff5757] cursor-pointer"
+        {/* DESKTOP SEARCH */}
+        <div className="relative flex-1 max-w-lg">
+          <div className="flex items-center bg-white rounded-full shadow px-4 py-2">
+            <FaSearch className="mr-2" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch(search)}
+              placeholder="Search products..."
+              className="w-full outline-none text-sm"
             />
+            {search && (
+              <FaTimes
+                onClick={clearSearch}
+                className="cursor-pointer text-gray-400"
+              />
+            )}
+          </div>
+
+          {search && recentSearches.length > 0 && (
+            <div className="absolute w-full mt-2 bg-white border rounded-xl shadow">
+              <p className="px-4 py-2 text-xs text-gray-400">
+                Recent searches
+              </p>
+              {recentSearches.map((term, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSearch(term)}
+                  className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Right */}
-        <div className="flex items-center gap-5 text-[#001b3d] relative">
-
-          {/* User Dropdown */}
+        <div className="flex items-center gap-5">
           <div className="relative">
             {token ? (
               <>
                 <button onClick={() => setShowDropdown(!showDropdown)}>
                   {renderAvatar()}
                 </button>
-
                 {showDropdown && (
-                  <div className="absolute right-0 mt-2 bg-white border rounded-lg shadow-lg py-2 w-36">
-                    <NavLink
-                      to="/account"
-                      onClick={() => setShowDropdown(false)}
-                      className="block px-4 py-2 text-sm text-[#001b3d] hover:bg-gray-100"
-                    >
+                  <div className="absolute right-0 mt-2 bg-white border rounded shadow w-36">
+                    <NavLink to="/account" className="block px-4 py-2">
                       Account
                     </NavLink>
                     <button
                       onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-[#ff5757] hover:bg-gray-100"
+                      className="block w-full px-4 py-2 text-left text-red-500"
                     >
                       Logout
                     </button>
@@ -167,43 +206,36 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Cart */}
           <NavLink to="/cart" className="relative">
-            <GrCart className="text-2xl" />
+            <GrCart size={22} />
             {totalItems > 0 && (
-              <span className="absolute -top-2 -right-3 bg-[#ff5757] text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                 {totalItems}
               </span>
             )}
           </NavLink>
 
-          <IoNotificationsOutline className="cursor-pointer text-xl" />
+          <IoNotificationsOutline size={22} />
         </div>
       </div>
 
-      {/* ---------------- MOBILE NAV TOP BAR ---------------- */}
-      <div className="md:hidden flex justify-between items-center px-5 py-4 bg-white shadow">
+      {/* ================= MOBILE TOP BAR ================= */}
+      <div className="lg:hidden flex justify-between items-center px-5 py-4">
+        <IoMenu size={30} onClick={() => setMenuOpen(true)} />
 
-        {/* Menu Button */}
-        <button className="text-3xl text-[#001b3d]" onClick={() => setMenuOpen(true)}>
-          <IoMenu />
-        </button>
+        <img src={navLogo} className="h-12" alt="logo" />
 
-        {/* Logo */}
-        <NavLink to="/">
-          <img src={navLogo} className="h-12 object-contain" alt="logo" />
-        </NavLink>
-
-        {/* Search Icon + Cart */}
-        <div className="flex items-center gap-5 text-2xl text-[#001b3d]">
+        <div className="flex gap-5 text-2xl">
           <IoSearchOutline
-            className="cursor-pointer"
-            onClick={() => navigate("/products")}
+            onClick={() => {
+              setMenuOpen(true);
+              setTimeout(() => mobileSearchRef.current?.focus(), 300);
+            }}
           />
           <NavLink to="/cart" className="relative">
-            <GrCart className="text-2xl" />
+            <GrCart />
             {totalItems > 0 && (
-              <span className="absolute -top-2 -right-3 bg-[#ff5757] text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
                 {totalItems}
               </span>
             )}
@@ -211,64 +243,91 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* ---------------- MOBILE MENU DRAWER ---------------- */}
+      {/* ================= MOBILE DRAWER ================= */}
       <div
-        className={`fixed top-0 left-0 h-full w-72 bg-white shadow-2xl z-[999] transform transition-transform duration-300 ${menuOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+        className={`fixed top-0 left-0 h-full w-72 bg-white z-[999] transition-transform duration-300 ${
+          menuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         <div className="flex justify-between items-center px-5 py-5 border-b">
-          <h2 className="text-lg font-semibold text-[#001b3d]">Menu</h2>
-          <IoClose
-            className="text-3xl text-[#001b3d] cursor-pointer"
-            onClick={() => setMenuOpen(false)}
-          />
+          <h2 className="font-semibold">Menu</h2>
+          <IoClose size={28} onClick={() => setMenuOpen(false)} />
         </div>
 
-        {/* Search Bar */}
+        {/* MOBILE SEARCH */}
         <div className="px-5 mt-4">
-          <div className="flex items-center border border-gray-300 rounded-full px-4 py-2">
+          <div className="flex items-center border rounded-full px-4 py-2">
+            <FaSearch className="mr-2" />
             <input
-              type="text"
-              placeholder="Search products..."
+              ref={mobileSearchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              className="w-full outline-none text-sm text-[#001b3d]"
+              onKeyDown={(e) => e.key === "Enter" && handleSearch(search)}
+              placeholder="Search products..."
+              className="w-full outline-none text-sm"
             />
-            {search ? (
-              <FaTimes onClick={clearSearch} className="text-gray-400 text-lg cursor-pointer" />
-            ) : (
-              <IoSearchOutline className="text-xl text-[#001b3d]" />
+            {search && (
+              <FaTimes onClick={clearSearch} className="cursor-pointer" />
             )}
           </div>
         </div>
 
-        {/* Menu Links */}
-        <div className="px-6 mt-6 flex flex-col gap-5 text-[#001b3d] text-lg font-medium">
+        {/* MOBILE LINKS */}
+        <div className="px-6 mt-6 flex flex-col gap-4 text-lg">
           <NavLink to="/" onClick={() => setMenuOpen(false)}>Home</NavLink>
-          <NavLink to="/wishlist" onClick={() => setMenuOpen(false)}>Wishlist</NavLink>
-          {token ? (
-            <NavLink to="/account" onClick={() => setMenuOpen(false)}>
-              Profile
-            </NavLink>
-          ) : (
-            <NavLink to="/user-login" onClick={() => setMenuOpen(false)}>
+
+          <button onClick={() => { handleFaceCare(); setMenuOpen(false); }}>
+            Face Care
+          </button>
+
+          <button onClick={() => { handleFaceMakeup(); setMenuOpen(false); }}>
+            Face Makeup
+          </button>
+
+          <NavLink to="/products" onClick={() => setMenuOpen(false)}>
+            Products
+          </NavLink>
+
+          <NavLink to="/about" onClick={() => setMenuOpen(false)}>
+            About
+          </NavLink>
+
+          {/* 🔐 MOBILE AUTH */}
+          {!token ? (
+            <NavLink
+              to="/user-login"
+              onClick={() => setMenuOpen(false)}
+              className="mt-4 text-[#ff5757] font-semibold"
+            >
               Login
             </NavLink>
+          ) : (
+            <>
+              <NavLink
+                to="/account"
+                onClick={() => setMenuOpen(false)}
+                className="mt-4"
+              >
+                Profile
+              </NavLink>
+
+              <button
+                onClick={handleLogout}
+                className="text-left text-red-500"
+              >
+                Logout
+              </button>
+            </>
           )}
-          <NavLink to="/about" onClick={() => setMenuOpen(false)}>About</NavLink>
-          <NavLink to="/products" onClick={() => setMenuOpen(false)}>Products</NavLink>
         </div>
       </div>
 
-      {/* DARK OVERLAY */}
       {menuOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-[998]"
           onClick={() => setMenuOpen(false)}
         />
       )}
-
     </nav>
   );
 };

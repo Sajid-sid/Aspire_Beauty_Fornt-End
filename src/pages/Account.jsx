@@ -266,80 +266,109 @@ const Account = () => {
         )}
 
         {/* ORDERS */}
-        {activeTab === "orders" && (
-          <div>
-            <h2 className="text-2xl font-semibold mb-5" style={{ color: primary }}>
-              Your Orders
-            </h2>
+     {/* ORDERS */}
+{activeTab === "orders" && (
+  <div>
+    <h2 className="text-2xl font-semibold mb-5" style={{ color: primary }}>
+      Your Orders
+    </h2>
 
-            {orderLoading && <p>Loading orders...</p>}
+    {orderLoading && <p>Loading orders...</p>}
 
-            {!orderLoading && !selectedOrderId && orders.length === 0 && (
-              <p className="text-gray-600">No orders yet.</p>
-            )}
+    {!orderLoading && !selectedOrderId && orders.length === 0 && (
+      <p className="text-gray-600">No orders yet.</p>
+    )}
 
-            {!orderLoading && !selectedOrderId && orders.length > 0 && (
-              <div className="space-y-4">
-                {orders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="border p-4 rounded-md hover:shadow cursor-pointer"
-                    onClick={() => handleViewOrder(order.id)}
-                  >
-                    <div className="flex justify-between">
-                      <p><strong>Order ID:</strong> #{order.id}</p>
-                      <p><strong>Status:</strong> {order.orderStatus}</p>
-                    </div>
-                    <p><strong>Total:</strong> ₹{order.totalAmount}</p>
-                    <p><strong>Date:</strong> {new Date(order.createdAt).toLocaleString()}</p>
-                    <p className="text-sm text-gray-500">{order.items.length} item(s)</p>
-                  </div>
-                ))}
-              </div>
-            )}
+    {/* ORDER LIST */}
+    {!orderLoading && !selectedOrderId && orders.length > 0 && (
+      <div className="space-y-4">
+        {orders.map((order) => (
+          <div
+            key={order.id}
+            className="border p-4 rounded-md hover:shadow cursor-pointer"
+            onClick={() => handleViewOrder(order.id)}
+          >
+            <div className="flex justify-between">
+              <p><strong>Order ID:</strong> #{order.id}</p>
+              <p><strong>Status:</strong> {order.orderStatus}</p>
+            </div>
 
-            {!orderLoading && selectedOrderId && currentOrder && (
-              <div>
-                <button
-                  className="mb-4 px-4 py-2 bg-gray-200 rounded-md"
-                  onClick={handleBackToOrders}
-                >
-                  ← Back to Orders
-                </button>
-
-                <h3 className="text-xl font-semibold mb-3">
-                  Order #{currentOrder.id}
-                </h3>
-
-                <p><strong>Status:</strong> {currentOrder.orderStatus}</p>
-                <p><strong>Total:</strong> ₹{currentOrder.totalAmount}</p>
-                <p><strong>Date:</strong> {new Date(currentOrder.createdAt).toLocaleString()}</p>
-
-                <div className="mt-4 space-y-2">
-                  {currentOrder.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between border-b pb-2"
-                    >
-                      <img
-                        src={item.imageUrl}
-                        alt={item.productName}
-                        className="w-16 h-16 object-cover rounded-md"
-                      />
-                      <div className="flex-1 px-4">
-                        <p className="font-semibold">{item.productName}</p>
-                        <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
-                      </div>
-                      <p className="font-semibold">
-                        ₹{item.price * item.quantity}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <p><strong>Total:</strong> ₹{order.totalAmount}</p>
+            <p>
+              <strong>Date:</strong>{" "}
+              {new Date(order.createdAt).toLocaleString()}
+            </p>
+            <p className="text-sm text-gray-500">
+              {order.items.length} item(s)
+            </p>
           </div>
-        )}
+        ))}
+      </div>
+    )}
+
+    {/* ORDER DETAILS */}
+    {!orderLoading && selectedOrderId && currentOrder && (
+      <div>
+        <button
+          className="mb-4 px-4 py-2 bg-gray-200 rounded-md"
+          onClick={handleBackToOrders}
+        >
+          ← Back to Orders
+        </button>
+
+        <h3 className="text-xl font-semibold mb-3">
+          Order #{currentOrder.id}
+        </h3>
+
+        <p><strong>Status:</strong> {currentOrder.orderStatus}</p>
+        <p><strong>Total:</strong> ₹{currentOrder.totalAmount}</p>
+        <p>
+          <strong>Date:</strong>{" "}
+          {new Date(currentOrder.createdAt).toLocaleString()}
+        </p>
+
+        <div className="mt-4 space-y-3">
+          {currentOrder.items.map((item) => {
+            const displayImage =
+              item.variantImage || item.productImage || "/no-image.png";
+
+            return (
+              <div
+                key={item.id}
+                className="flex items-center gap-4 border-b pb-3"
+              >
+                <img
+                  src={displayImage}
+                  alt={item.productName}
+                  className="w-16 h-16 object-cover rounded-md border"
+                />
+
+                <div className="flex-1">
+                  <p className="font-semibold">{item.productName}</p>
+
+                  {item.variantName && (
+                    <p className="text-sm text-gray-500">
+                      Variant: {item.variantName}
+                    </p>
+                  )}
+
+                  <p className="text-sm text-gray-500">
+                    Qty: {item.quantity}
+                  </p>
+                </div>
+
+                <p className="font-semibold">
+                  ₹{item.price * item.quantity}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
 
         {/* WISHLIST */}
         {activeTab === "wishlist" && (

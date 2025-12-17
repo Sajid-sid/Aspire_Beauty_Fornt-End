@@ -1,22 +1,20 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import {
   removeFromCart,
   decreaseQuantity,
-  addToCart,
+  increaseQuantity,
   clearCart,
 } from "../features/cart/cartSlice";
-import { useNavigate } from "react-router-dom";
 import { setSingleCheckoutItem } from "../features/checkout/checkoutSlice";
 
 const Cart = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
   const { items, totalAmount, totalItems } = useSelector((state) => state.cart);
   const { token, user } = useSelector((state) => state.user);
-
-  const primary = "#001B3D";
-  const secondary = "#FF5757";
 
   if (items.length === 0)
     return (
@@ -41,7 +39,7 @@ const Cart = () => {
       navigate("/user-login");
       return;
     }
-    dispatch(setSingleCheckoutItem({ ...item, quantity: 1 }));
+    dispatch(setSingleCheckoutItem({ ...item, quantity: item.quantity }));
     navigate("/check-out?mode=single");
   };
 
@@ -66,33 +64,44 @@ const Cart = () => {
       <div className="space-y-6">
         {items.map((item) => (
           <div
-            key={item.id}
+            key={item.selectedVariant?.variantId || item.id}
             className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-5 border-b border-gray-200 gap-4"
           >
             {/* Left Section */}
             <div className="flex gap-4 flex-1">
               <img
-                src={item.image1}
+                src={item.selectedVariant?.product_image || item.image1}
                 alt={item.name}
                 className="w-24 h-24 object-cover rounded-md border"
               />
               <div className="flex flex-col justify-between py-1 w-full">
                 <div>
                   <p className="text-lg font-medium text-gray-900">{item.name}</p>
-                  <p className="text-gray-600 text-sm mt-1">₹{item.price}</p>
+                  {item.selectedVariant && (
+                    <p className="text-sm text-gray-600">
+                      Variant: {item.selectedVariant.variant || item.selectedVariant.label}
+                    </p>
+                  )}
+                  <p className="text-gray-600 text-sm mt-1">
+                    ₹{item.selectedVariant?.price || item.price}
+                  </p>
                 </div>
 
                 {/* Quantity */}
                 <div className="flex items-center gap-3 mt-3">
                   <button
-                    onClick={() => dispatch(decreaseQuantity(item.id))}
+                    onClick={() =>
+                      dispatch(decreaseQuantity(item.selectedVariant?.variantId || item.id))
+                    }
                     className="w-8 h-8 border border-[#001B3D] flex items-center justify-center rounded hover:bg-[#001B3D] hover:text-white transition"
                   >
                     −
                   </button>
                   <span className="text-gray-800 font-medium">{item.quantity}</span>
                   <button
-                    onClick={() => dispatch(addToCart(item))}
+                    onClick={() =>
+                      dispatch(increaseQuantity(item.selectedVariant?.variantId || item.id))
+                    }
                     className="w-8 h-8 border border-[#001B3D] flex items-center justify-center rounded hover:bg-[#001B3D] hover:text-white transition"
                   >
                     +
@@ -104,7 +113,9 @@ const Cart = () => {
             {/* Right Section */}
             <div className="flex flex-col items-end gap-2">
               <button
-                onClick={() => dispatch(removeFromCart(item.id))}
+                onClick={() =>
+                  dispatch(removeFromCart(item.selectedVariant?.variantId || item.id))
+                }
                 className="text-[#FF5757] hover:text-red-600 text-sm underline underline-offset-4"
               >
                 Remove

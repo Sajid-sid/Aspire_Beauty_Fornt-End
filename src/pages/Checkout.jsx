@@ -35,13 +35,13 @@ const Checkout = () => {
   const grandTotal = subtotal + deliveryFee;
 
   const [form, setForm] = useState({
-    userid: user?.id || "",
+    userid: user?.id || 0,
     fullname: user?.fullname || "",
     email: user?.email || "",
     mobile: user?.mobile || "",
     address: "",
     landmark: "",
-    addressType: "",
+    addressType: "Home",
     city: "",
     state: "",
     pincode: "",
@@ -107,7 +107,7 @@ const Checkout = () => {
           state: prev.state || addr.state || "",
           pincode: prev.pincode || addr.postcode || "",
         }));
-      } catch {}
+      } catch { }
     });
   };
 
@@ -124,58 +124,77 @@ const Checkout = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePlaceOrder = async () => {
-    if (!form.address || !form.city || !form.pincode) {
-      return alert("Please fill all required fields.");
-    }
+const handlePlaceOrder = async () => {
+  // ✅ Required validations
+  if (!form.fullname?.trim()) return alert("Please enter full name.");
+  if (!form.mobile?.trim()) return alert("Please enter mobile number.");
+  if (!form.address?.trim() || !form.city?.trim() || !form.pincode?.trim()) {
+    return alert("Please fill all required fields.");
+  }
 
-    const orderData = {
-      userid: form.userid,
-      fullName: form.fullname,
-      phone: form.mobile,
-      email: form.email,
-      address: form.address,
-      landmark: form.landmark,
-      addressType: form.addressType,
-      city: form.city,
-      state: form.state,
-      pincode: form.pincode,
-      latitude: form.latitude,
-      longitude: form.longitude,
-      totalAmount: grandTotal,
-      items: checkoutItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        imageUrl: item.image1 || item.imageUrl,
-      })),
-    };
+  const orderData = {
+    userid: form.userid || 0,
+    fullName: form.fullname || "Guest",
+    phone: form.mobile || "0000000000",
+    email: form.email || "",
+    address: form.address,
+    landmark: form.landmark || null,
+    addressType: form.addressType || "Home",
+    city: form.city,
+    state: form.state,
+    pincode: form.pincode,
+    latitude: form.latitude || null,
+    longitude: form.longitude || null,
+    totalAmount: grandTotal,
+    items: checkoutItems.map((item) => ({
+      productId: item.productId || item.id,
+      variantId: item.variantId || null,
+      variantName: item.variantName || null,
+      variantImage: item.variantImage || null,
+      productName: item.productName || item.name || "Unknown Product",
+      price: item.price || 0,
+      quantity: item.quantity || 1,
+      productImage: item.productImage || item.image1 || null,
+    })),
+  };
 
+  try {
     const result = await dispatch(placeOrder(orderData));
 
     if (result.meta.requestStatus === "fulfilled") {
-      if (pageMode === "single") {
-        dispatch(removeFromCart(singleItem.id));
+      // ✅ Remove items from cart/localStorage
+      if (pageMode === "single" && singleItem) {
+        const variantId = singleItem.selectedVariant?.variantId || singleItem.id;
+        dispatch(removeFromCart(variantId));
         dispatch(clearSingleCheckoutItem());
       } else {
-        checkoutItems.forEach((i) => dispatch(removeFromCart(i.id)));
+        // Remove all items being checked out
+        checkoutItems.forEach((i) => {
+          const variantId = i.selectedVariant?.variantId || i.id;
+          dispatch(removeFromCart(variantId));
+        });
       }
+
+      // ✅ Navigate to order status page
       navigate(`/order-status?orderId=${result.payload.orderId}`);
     } else {
-      alert("Order failed.");
+      alert("Order failed. Please try again.");
     }
-  };
+  } catch (err) {
+    console.error("handlePlaceOrder error:", err);
+    alert("Something went wrong. Please try again.");
+  }
+};
+
+
 
   return (
     <div className="max-w-5xl mx-auto p-6 mt-6">
       <h2 className="text-3xl font-bold text-[#001B3D] mb-8">Checkout</h2>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Delivery Form */}
         <div className="lg:col-span-2 bg-white shadow-lg border rounded-2xl p-6">
           <h3 className="text-xl font-semibold mb-4">Delivery Details</h3>
-
           <button
             onClick={handleUseCurrentLocation}
             className="bg-green-600 text-white px-4 py-2 rounded-lg mb-4 hover:bg-green-700 transition"
@@ -251,7 +270,6 @@ const Checkout = () => {
         {/* Order Summary */}
         <div className="bg-white shadow-lg border rounded-2xl p-6 h-fit sticky top-4">
           <h2 className="text-xl font-bold mb-2">Order Summary</h2>
-
           <p className="text-sm text-[#001B3D] mb-4">
             Total Items: <span className="font-semibold">{checkoutItems.reduce((s, i) => s + i.quantity, 0)}</span>
           </p>
@@ -260,7 +278,7 @@ const Checkout = () => {
             {checkoutItems.map((item) => (
               <div key={item.id} className="flex items-center justify-between border-b pb-4">
                 <img
-                  src={item.image1 || item.imageUrl}
+                  src={item.selectedVariant?.product_image || item.image1 || item.productImage || "/no-image.png"}
                   alt={item.name}
                   className="w-20 h-20 object-cover rounded-lg"
                 />

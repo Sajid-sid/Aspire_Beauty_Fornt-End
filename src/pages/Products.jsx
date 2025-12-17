@@ -1,32 +1,40 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { FaChevronDown } from "react-icons/fa";
+import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { setCategory,  setSubcategory,  setSort, setPriceRange, clearFilters, } from "../features/filters/filterSlice";
+import { useNavigate } from "react-router-dom";
+import { FaChevronDown } from "react-icons/fa";
+
+import {
+  setCategory,
+  setSubcategory,
+  setSort,
+  setPriceRange,
+  clearFilters,
+} from "../features/filters/filterSlice";
+import { fetchProducts } from "../features/products/productSlice";
+import { addToCart as addToCartAction } from "../features/cart/cartSlice";
+import { setSingleCheckoutItem } from "../features/checkout/checkoutSlice";
+
 import ProductCard from "../components/ProductCard";
-import api from "../api";
 
 const Products = () => {
-  const [products, setProducts] = useState([]);
-  const [showMobileFilters, setShowMobileFilters] = useState(false); 
-
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const { items: products = [], loading } = useSelector(
+    (state) => state.products
+  );
+
   const { category, subcategory, priceRange, sort, searchTerm } = useSelector(
     (state) => state.filters
   );
 
-  // Fetch products once
   useEffect(() => {
-    api.get("/products").then((res) => {
-     
-      setProducts(res.data || []);
-    });
-  }, []);
+    dispatch(fetchProducts());
+  }, [dispatch]);
 
-  // Unique categories
+  /* ---------- OPTIONS ---------- */
   const categoryOptions = [...new Set(products.map((p) => p.category_name))];
 
-  // Unique subcategories based on selected category
   const subcategoryOptions = category
     ? [
         ...new Set(
@@ -40,7 +48,7 @@ const Products = () => {
       ]
     : [...new Set(products.map((p) => p.subcategory_name))];
 
-  // Final filtered products
+  /* ---------- FILTER PRODUCTS ---------- */
   const finalProducts = products
     .filter((p) =>
       category ? p.category_name?.toLowerCase() === category.toLowerCase() : true
@@ -72,151 +80,144 @@ const Products = () => {
       return 0;
     });
 
-  // Reusable dropdown
-  const Dropdown = ({ value, onChange, options }) => (
-    <div className="relative">
+  /* ---------- FILTER CHIP COMPONENT ---------- */
+  const FilterChip = ({ label, value, onChange, options }) => (
+    <div className="relative shrink-0">
       <select
-        className="appearance-none bg-white px-5 py-2.5 rounded-xl border border-[#001b3d] shadow-sm text-[#001b3d] font-medium"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        className="appearance-none px-4 py-2 pr-8 rounded-full border border-gray-300 bg-white text-sm font-medium"
       >
+        <option value="">{label}</option>
         {options.map((opt, i) => (
           <option key={i} value={typeof opt === "object" ? opt.value : opt}>
             {typeof opt === "object" ? opt.label : opt}
           </option>
         ))}
       </select>
-
-      <FaChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#001b3d] text-xs" />
+      <FaChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none" />
     </div>
   );
+
+  /* ---------- ADD TO CART / BUY NOW ---------- */
+  const handleAddToCart = (product) => {
+    dispatch(addToCartAction(product));
+  };
+
+  const handleBuyNow = (product) => {
+    dispatch(setSingleCheckoutItem({ ...product, quantity: 1 }));
+    navigate("/check-out?mode=single");
+  };
 
   return (
     <div className="min-h-screen">
 
-      {/* MOBILE FILTER BUTTON */}
-      <div className="sm:hidden px-4 pt-4">
-        <button
-          onClick={() => setShowMobileFilters(!showMobileFilters)}
-          className="w-full py-3 bg-[#001b3d] text-white rounded-xl shadow"
-        >
-          {showMobileFilters ? "Hide Filters" : "Show Filters"}
-        </button>
-      </div>
-
-      {/* MOBILE FILTERS PANEL */}
-      {showMobileFilters && (
-        <div className="sm:hidden flex flex-col gap-3 px-4 py-4">
-          <Dropdown
+      {/* ================= MOBILE FILTER BAR ================= */}
+      <div className="sm:hidden sticky top-[64px] z-30 bg-white border-b">
+        <div className="flex gap-3 px-3 py-3 overflow-x-auto no-scrollbar">
+          <FilterChip
+            label="Category"
             value={category}
-            onChange={(val) => dispatch(setCategory(val))}
-            options={[
-              { value: "", label: "All Categories" },
-              ...categoryOptions.map((c) => ({ value: c, label: c })),
-            ]}
+            onChange={(v) => dispatch(setCategory(v))}
+            options={categoryOptions}
           />
-
-          <Dropdown
+          <FilterChip
+            label="Subcategory"
             value={subcategory}
-            onChange={(val) => dispatch(setSubcategory(val))}
-            options={[
-              { value: "", label: "All Subcategories" },
-              ...subcategoryOptions.map((s) => ({ value: s, label: s })),
-            ]}
+            onChange={(v) => dispatch(setSubcategory(v))}
+            options={subcategoryOptions}
           />
-
-          <Dropdown
+          <FilterChip
+            label="Price"
             value={priceRange}
-            onChange={(val) => dispatch(setPriceRange(val))}
+            onChange={(v) => dispatch(setPriceRange(v))}
             options={[
-              { value: "", label: "All Prices" },
               { value: "0-500", label: "₹0 - ₹500" },
               { value: "500-1000", label: "₹500 - ₹1000" },
               { value: "1000-2000", label: "₹1000 - ₹2000" },
               { value: "2000+", label: "₹2000+" },
             ]}
           />
-
-          <Dropdown
+          <FilterChip
+            label="Sort"
             value={sort}
-            onChange={(val) => dispatch(setSort(val))}
+            onChange={(v) => dispatch(setSort(v))}
             options={[
-              { value: "", label: "Sort" },
               { value: "az", label: "A → Z" },
               { value: "za", label: "Z → A" },
               { value: "lowhigh", label: "Low → High" },
               { value: "highlow", label: "High → Low" },
             ]}
           />
-
           <button
             onClick={() => dispatch(clearFilters())}
-            className="px-4 py-2 rounded-full border border-[#ff5757] text-[#ff5757] hover:bg-[#ff5757] hover:text-white transition"
+            className="px-4 py-2 rounded-full border border-red-400 text-red-500 text-sm shrink-0"
           >
             Clear
           </button>
         </div>
-      )}
+      </div>
 
-      {/* DESKTOP FILTERS */}
-      <div className="hidden sm:flex gap-3 justify-center items-center pt-4">
-        <Dropdown
+      {/* ================= DESKTOP FILTERS ================= */}
+      <div className="hidden sm:flex gap-3 justify-center items-center pt-6 px-4">
+        <FilterChip
+          label="All Categories"
           value={category}
-          onChange={(val) => dispatch(setCategory(val))}
-          options={[
-            { value: "", label: "All Categories" },
-            ...categoryOptions.map((c) => ({ value: c, label: c })),
-          ]}
+          onChange={(v) => dispatch(setCategory(v))}
+          options={categoryOptions}
         />
-
-        <Dropdown
+        <FilterChip
+          label="All Subcategories"
           value={subcategory}
-          onChange={(val) => dispatch(setSubcategory(val))}
-          options={[
-            { value: "", label: "All Subcategories" },
-            ...subcategoryOptions.map((s) => ({ value: s, label: s })),
-          ]}
+          onChange={(v) => dispatch(setSubcategory(v))}
+          options={subcategoryOptions}
         />
-
-        <Dropdown
+        <FilterChip
+          label="All Prices"
           value={priceRange}
-          onChange={(val) => dispatch(setPriceRange(val))}
+          onChange={(v) => dispatch(setPriceRange(v))}
           options={[
-            { value: "", label: "All Prices" },
             { value: "0-500", label: "₹0 - ₹500" },
             { value: "500-1000", label: "₹500 - ₹1000" },
             { value: "1000-2000", label: "₹1000 - ₹2000" },
             { value: "2000+", label: "₹2000+" },
           ]}
         />
-
-        <Dropdown
+        <FilterChip
+          label="Sort"
           value={sort}
-          onChange={(val) => dispatch(setSort(val))}
+          onChange={(v) => dispatch(setSort(v))}
           options={[
-            { value: "", label: "Sort" },
             { value: "az", label: "A → Z" },
             { value: "za", label: "Z → A" },
             { value: "lowhigh", label: "Low → High" },
             { value: "highlow", label: "High → Low" },
           ]}
         />
-
         <button
           onClick={() => dispatch(clearFilters())}
-          className="px-4 py-2 rounded-full border border-[#ff5757] text-[#ff5757] hover:bg-[#ff5757] hover:text-white transition"
+          className="px-4 py-2 rounded-full border border-red-500 text-red-500"
         >
           Clear
         </button>
       </div>
 
-      {/* PRODUCTS GRID */}
-      <div className="p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {finalProducts.length > 0 ? (
-          finalProducts.map((p) => <ProductCard key={p.id} product={p} />)
+      {/* ================= PRODUCTS GRID ================= */}
+      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        {loading ? (
+          <p className="col-span-full text-center">Loading products...</p>
+        ) : finalProducts.length ? (
+          finalProducts.map((p) => (
+            <ProductCard
+              key={p.id}
+              product={p}
+              addToCart={handleAddToCart}
+              buyNow={handleBuyNow}
+            />
+          ))
         ) : (
           <p className="col-span-full text-center text-gray-500">
-            No Products Found.
+            No Products Found
           </p>
         )}
       </div>

@@ -1,165 +1,170 @@
-import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FaHeart, FaRegHeart, FaShoppingCart } from "react-icons/fa";
-import { FiShare2 } from "react-icons/fi";
+import { useEffect, useState } from "react";
+import { FaShoppingCart, FaBolt, FaShareAlt } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  addToCart,
-  increaseQuantity,
-  decreaseQuantity,
-  clearCart,
-} from "../features/cart/cartSlice";
-import { toggleWishlist } from "../features/wishlist/wishlistSlice";
-import { setSingleCheckoutItem } from "../features/checkout/checkoutSlice";
+import { addToCart, decreaseQuantity } from "../features/cart/cartSlice";
+import { useNavigate } from "react-router-dom";
 
-
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, buyNow }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
   const cartItems = useSelector((state) => state.cart.items);
-  const wishlistItems = useSelector((state) => state.wishlist.items);
 
-    const { token, user } = useSelector((state) => state.user);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [mainImage, setMainImage] = useState(product.image1);
+  const [qtyMap, setQtyMap] = useState({});
 
-  const cartItem = cartItems.find((item) => item.id === product.id);
-  const inWishlist = wishlistItems.some((item) => item.id === product.id);
+  // Initialize first variant
+  useEffect(() => {
+    if (product?.variants?.length > 0) {
+      const first = product.variants[0];
+      setSelectedVariant(first);
+      setMainImage(first.product_image || product.image1);
+    }
+  }, [product]);
 
-  const handleAddToCart = () => dispatch(addToCart(product));
-  const handleIncrease = () => dispatch(increaseQuantity(product.id));
-  const handleDecrease = () => dispatch(decreaseQuantity(product.id));
-  const handleWishlistToggle = () => dispatch(toggleWishlist(product));
+  // Map quantities from cart
+  useEffect(() => {
+    const map = {};
+    cartItems.forEach(item => {
+      const id = item.selectedVariant?.variantId || item.productId;
+      map[id] = item.quantity;
+    });
+    setQtyMap(map);
+  }, [cartItems]);
 
-  
+  const handleVariantSelect = (variant) => {
+    setSelectedVariant(variant);
+    setMainImage(variant.product_image || product.image1);
+  };
 
-   const handleBuyNow = (item) => {
-  if (!token || !user) {
-    navigate("/user-login");
-    return;
-  }
+  const handleAdd = () => {
+    if (!selectedVariant) return;
 
-  dispatch(setSingleCheckoutItem({ ...item, quantity: 1 }));
-  navigate("/check-out?mode=single");
-};
+    setQtyMap(prev => ({
+      ...prev,
+      [selectedVariant.variantId]: (prev[selectedVariant.variantId] || 0) + 1
+    }));
 
+    dispatch(addToCart({
+      productId: product.id,
+      name: product.name,
+      price: selectedVariant?.price || product.price,
+      image1: selectedVariant?.product_image || product.image1,
+      selectedVariant: {
+        variantId: selectedVariant?.variantId,
+        variant: selectedVariant?.variant || selectedVariant?.label,
+        variant_image: selectedVariant?.variant_image,
+        product_image: selectedVariant?.product_image || product.image1,
+        price: selectedVariant?.price || product.price,
+      }
+    }));
+  };
 
-  // ⭐ FIXED SHARE FOR VERCEL
-  const handleShare = () => {
-    const url = `${window.location.origin}/product/${product.id}`;
+  const handleMinus = () => {
+    const currentQty = qtyMap[selectedVariant.variantId] || 0;
+    if (currentQty <= 0) return;
 
-    // If mobile browser supports Web Share API
+    setQtyMap(prev => {
+      const copy = { ...prev };
+      if (currentQty === 1) delete copy[selectedVariant.variantId];
+      else copy[selectedVariant.variantId] = currentQty - 1;
+      return copy;
+    });
+
+    dispatch(decreaseQuantity(selectedVariant.variantId));
+  };
+
+  const qty = selectedVariant ? (qtyMap[selectedVariant.variantId] || 0) : 0;
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/product/${product.id}`;
     if (navigator.share) {
-      navigator
-        .share({
-          title: product.name,
-          text: "Check out this product!",
-          url,
-        })
-        .catch(() => {
-          navigator.clipboard.writeText(url);
-          alert("Product link copied to clipboard!");
-        });
+      try { await navigator.share({ title: product.name, url: shareUrl }); } catch {}
     } else {
-      // Fallback for Vercel / Desktop
-      navigator.clipboard.writeText(url);
-      alert("Product link copied to clipboard!");
+      await navigator.clipboard.writeText(shareUrl);
+      alert("Product link copied");
     }
   };
 
+  const handleImageClick = () => {
+    navigate(`/product/${product.id}`, { state: { selectedVariantId: selectedVariant?.variantId || null } });
+  };
+
   return (
-  <div className="relative flex flex-col bg-white border border-gray-100 shadow-md rounded-2xl p-3 transition-all duration-300 hover:shadow-lg w-full max-w-xs sm:max-w-sm">
-
-    {/* 🖼️ Product Image + Wishlist + Share */}
-    <div className="relative w-full flex justify-center">
-      <Link to={`/product/${product.id}`} className="w-full flex justify-center">
-        <div className="w-32 sm:w-40 md:w-44 lg:w-48 aspect-square relative">
-          <img
-            src={product.image1}
-            alt={product.name}
-            className="absolute inset-0 w-full h-full object-contain rounded-lg border border-gray-100"
-          />
-        </div>
-      </Link>
-
-      {/* ❤️ Wishlist & Share Over Image */}
-      <div className="absolute top-2 right-2 flex flex-col gap-2">
-
-        {/* Wishlist */}
+    <div className="group rounded-2xl border border-zinc-200 bg-white shadow-md hover:shadow-lg transition-all duration-300 p-4 flex flex-col space-y-4 max-w-xs mx-auto">
+      
+      {/* MAIN IMAGE */}
+      <div
+        className="relative w-full h-64 md:h-72 rounded-xl overflow-hidden bg-zinc-100 cursor-pointer"
+        onClick={handleImageClick} // Only image click navigates
+      >
+        <img
+          src={mainImage}
+          alt={product.name}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
         <button
-          onClick={handleWishlistToggle}
-          className="p-2 bg-white rounded-full shadow-md hover:bg-gray-100"
+          onClick={(e) => { e.stopPropagation(); handleShare(); }}
+          className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow hover:bg-white transition"
         >
-          {inWishlist ? (
-            <FaHeart className="w-5 h-5 text-[#FF5757]" />
-          ) : (
-            <FaRegHeart className="w-5 h-5 text-[#001B3D]" />
-          )}
+          <FaShareAlt size={13} />
         </button>
+      </div>
 
-        {/* Share */}
+      {/* DETAILS */}
+      <div className="space-y-1">
+        <h3 className="text-sm font-semibold text-zinc-900 truncate">{product.name}</h3>
+        <p className="text-lg font-bold text-zinc-900">₹{selectedVariant?.price || product.price}</p>
+        {selectedVariant && (
+          <p className="text-xs text-zinc-500">{selectedVariant.label || selectedVariant.variant}</p>
+        )}
+      </div>
+
+      {/* VARIANTS */}
+      {product.variants?.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {product.variants.map((variant) => (
+            <button
+              key={variant.variantId}
+              onClick={() => handleVariantSelect(variant)} // Change variant without navigating
+              className={`h-10 w-10 rounded-full overflow-hidden border-2 transition flex-shrink-0 ${selectedVariant?.variantId === variant.variantId ? "border-zinc-900" : "border-zinc-300 hover:border-zinc-500"}`}
+            >
+              <img
+                src={variant.variant_image || variant.product_image || product.image1}
+                alt={variant.variant}
+                className="w-full h-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ACTIONS */}
+      <div className="flex gap-2 pt-2">
+        {qty === 0 ? (
+          <button
+            onClick={handleAdd}
+            className="flex-1 h-10 text-sm font-medium flex items-center justify-center gap-2 rounded-lg border border-zinc-300 hover:bg-zinc-100 transition"
+          >
+            <FaShoppingCart size={14} /> Add to Cart
+          </button>
+        ) : (
+          <div className="flex-1 h-10 flex items-center justify-between rounded-lg border border-zinc-300 px-3">
+            <button onClick={handleMinus} className="text-lg leading-none">−</button>
+            <span className="text-sm font-semibold">{qty}</span>
+            <button onClick={handleAdd} className="text-lg leading-none">+</button>
+          </div>
+        )}
+
         <button
-          onClick={handleShare}
-          className="p-2 bg-white rounded-full shadow-md hover:bg-gray-100"
+          onClick={() => buyNow({ ...product, variant: selectedVariant })}
+          className="flex-1 h-10 text-sm font-medium flex items-center justify-center gap-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 transition"
         >
-          <FiShare2 className="w-5 h-5 text-[#001B3D]" />
+          <FaBolt size={14} /> Buy Now
         </button>
       </div>
     </div>
-
-    {/* Product Details */}
-    <div className="mt-3 w-full">
-      <p className="font-semibold text-gray-800 truncate text-sm sm:text-base">
-        {product.name}
-      </p>
-      <p className="text-xs sm:text-sm text-gray-500">{product.category_name}</p>
-      <p className="font-semibold mt-1 text-[#001B3D] text-sm sm:text-base">
-        ₹{product.price}
-      </p>
-    </div>
-
-    {/* Cart Controls */}
-    <div className="mt-3 w-full flex justify-center">
-      {cartItem ? (
-        <div className="flex items-center gap-2 bg-[#001B3D] text-white rounded-lg px-3 py-1 text-sm sm:text-base">
-          <button onClick={handleDecrease} className="font-bold px-1">−</button>
-          <span className="font-medium">{cartItem.quantity}</span>
-          <button onClick={handleIncrease} className="font-bold px-1">+</button>
-        </div>
-      ) : product.stock === 0 ? (
-        <button
-          disabled
-          className="w-full text-center text-white px-3 py-2 rounded-lg text-sm font-medium bg-gray-400 cursor-not-allowed"
-        >
-          Out of Stock
-        </button>
-      ) : (
-        <button
-          onClick={handleAddToCart}
-          className="w-full flex justify-center items-center gap-2 text-white px-3 py-2 rounded-lg text-sm font-medium bg-[#001B3D] hover:bg-[#00132A]"
-        >
-          <FaShoppingCart className="text-sm" />
-          Add to Cart
-        </button>
-      )}
-    </div>
-
-    {/* ⭐ BUY NOW BUTTON — Mobile stacked / Desktop side-by-side */}
-    <div className="mt-2 w-full flex flex-col sm:flex-row gap-2">
-
-      {/* Add to Cart (Desktop only duplicate hidden on mobile?) */}
-      {/* IF YOU WANT ONLY ONE BUTTON, REMOVE ABOVE cart controls */}
-
-      <button
-        onClick={() => handleBuyNow(product)}
-        className="w-full bg-[#FF6B32] hover:bg-[#E65A28] text-white py-2 rounded-lg text-sm font-semibold transition"
-      >
-        Buy Now
-      </button>
-    </div>
-
-  </div>
-);
-
+  );
 };
 
 export default ProductCard;

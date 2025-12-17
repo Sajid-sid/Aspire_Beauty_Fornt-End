@@ -1,22 +1,22 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-// ✅ Load from localStorage if available
+// Load cart from localStorage
 const loadCartFromLocalStorage = () => {
   try {
     const data = localStorage.getItem("cart");
-    return data ? JSON.parse(data) : { items: [], totalAmount: 0 };
+    return data ? JSON.parse(data) : { items: [], totalAmount: 0, totalItems: 0 };
   } catch (error) {
-    console.error("Error loading cart from localStorage:", error);
-    return { items: [], totalAmount: 0 };
+    console.error("Error loading cart:", error);
+    return { items: [], totalAmount: 0, totalItems: 0 };
   }
 };
 
-// ✅ Save to localStorage
+// Save cart to localStorage
 const saveCartToLocalStorage = (state) => {
   try {
     localStorage.setItem("cart", JSON.stringify(state));
   } catch (error) {
-    console.error("Error saving cart to localStorage:", error);
+    console.error("Error saving cart:", error);
   }
 };
 
@@ -26,95 +26,89 @@ const cartSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
-   addToCart: (state, action) => {
-  const product = action.payload;
-  const existing = state.items.find((item) => item.id === product.id);
+    addToCart: (state, action) => {
+      const product = action.payload;
+      // Use variant id to differentiate variants
+      const variantId = product.selectedVariant?.variantId || product.id;
 
-  if (existing) {
-    existing.quantity += 1;
-
-    // 🧠 Move the updated item to the top
-    state.items = [
-      existing,
-      ...state.items.filter((item) => item.id !== product.id),
-    ];
-  } else {
-    // 🧠 Add new item to top instead of bottom
-    state.items = [{ ...product, quantity: 1 }, ...state.items];
-  }
-
-  state.totalItems = state.items.reduce(
-    (number, item) => number + item.quantity,
-    0
-  );
-
-  state.totalAmount = state.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
-  saveCartToLocalStorage(state);
-},
-
-
-    removeFromCart: (state, action) => {
-      const productId = action.payload;
-      state.items = state.items.filter((item) => item.id !== productId);
-
-      state.totalItems = state.items.reduce(
-    (number, item) => number + item.quantity,
-    0
-  );
-
-      state.totalAmount = state.items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
+      const existing = state.items.find(
+        (item) => (item.selectedVariant?.variantId || item.id) === variantId
       );
-
-      saveCartToLocalStorage(state);
-    },
-
-
-
-    decreaseQuantity: (state, action) => {
-      const productId = action.payload;
-      const existing = state.items.find((item) => item.id === productId);
-
-      if (existing && existing.quantity > 1) {
-        existing.quantity -= 1;
-      } else {
-        state.items = state.items.filter((item) => item.id !== productId);
-      }
-
-      state.totalItems = state.items.reduce(
-    (number, item) => number + item.quantity,
-    0
-  );
-
-      state.totalAmount = state.items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-      );
-
-      saveCartToLocalStorage(state);
-    },
-
-    // ✅ ADD THIS NEW ACTION
-    increaseQuantity: (state, action) => {
-      const productId = action.payload;
-      const existing = state.items.find((item) => item.id === productId);
 
       if (existing) {
         existing.quantity += 1;
+        state.items = [
+          existing,
+          ...state.items.filter(
+            (item) => (item.selectedVariant?.variantId || item.id) !== variantId
+          ),
+        ];
+      } else {
+        state.items = [{ ...product, quantity: 1 }, ...state.items];
       }
 
-      state.totalItems = state.items.reduce(
-    (number, item) => number + item.quantity,
-    0
-  );
-
+      state.totalItems = state.items.reduce((sum, item) => sum + item.quantity, 0);
       state.totalAmount = state.items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
+        (sum, item) =>
+          sum + item.quantity * (item.selectedVariant?.price || item.price),
+        0
+      );
+
+      saveCartToLocalStorage(state);
+    },
+
+    removeFromCart: (state, action) => {
+      const variantId = action.payload;
+      state.items = state.items.filter(
+        (item) => (item.selectedVariant?.variantId || item.id) !== variantId
+      );
+
+      state.totalItems = state.items.reduce((sum, item) => sum + item.quantity, 0);
+      state.totalAmount = state.items.reduce(
+        (sum, item) =>
+          sum + item.quantity * (item.selectedVariant?.price || item.price),
+        0
+      );
+
+      saveCartToLocalStorage(state);
+    },
+
+    decreaseQuantity: (state, action) => {
+      const variantId = action.payload;
+      const existing = state.items.find(
+        (item) => (item.selectedVariant?.variantId || item.id) === variantId
+      );
+
+      if (existing) {
+        if (existing.quantity > 1) existing.quantity -= 1;
+        else
+          state.items = state.items.filter(
+            (item) => (item.selectedVariant?.variantId || item.id) !== variantId
+          );
+      }
+
+      state.totalItems = state.items.reduce((sum, item) => sum + item.quantity, 0);
+      state.totalAmount = state.items.reduce(
+        (sum, item) =>
+          sum + item.quantity * (item.selectedVariant?.price || item.price),
+        0
+      );
+
+      saveCartToLocalStorage(state);
+    },
+
+    increaseQuantity: (state, action) => {
+      const variantId = action.payload;
+      const existing = state.items.find(
+        (item) => (item.selectedVariant?.variantId || item.id) === variantId
+      );
+
+      if (existing) existing.quantity += 1;
+
+      state.totalItems = state.items.reduce((sum, item) => sum + item.quantity, 0);
+      state.totalAmount = state.items.reduce(
+        (sum, item) =>
+          sum + item.quantity * (item.selectedVariant?.price || item.price),
         0
       );
 
