@@ -1,33 +1,27 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useParams } from "react-router-dom";
-import { toggleWishlist } from "../features/wishlist/wishlistSlice";
+import { addToWishlist, removeFromWishlist } from "../features/wishlist/wishlistSlice";
 import { addToCart } from "../features/cart/cartSlice";
 import { FaHeart, FaRegHeart, FaShoppingCart, FaBolt } from "react-icons/fa";
+import { setSingleCheckoutItem } from "../features/checkout/checkoutSlice";
 import { FiShare2 } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 const ProductPage = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const products = useSelector((state) => state.products.items || []);
   const wishlistItems = useSelector((state) => state.wishlist.items);
   const cartItems = useSelector((state) => state.cart.items);
 
   const product = products.find((p) => p.id === parseInt(id));
-
   const [mainImage, setMainImage] = useState("");
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [qtyMap, setQtyMap] = useState({});
   const [galleryImages, setGalleryImages] = useState([]);
-  const [openIndex, setOpenIndex] = useState(0);
-
-  // Zoom overlay
-  const [isZoomOpen, setIsZoomOpen] = useState(false);
-  const [zoomIndex, setZoomIndex] = useState(0);
-  const [zoomScale, setZoomScale] = useState(1);
-  const [touchStart, setTouchStart] = useState(null);
-  const zoomRef = useRef();
 
   useEffect(() => {
     if (!product) return;
@@ -35,15 +29,14 @@ const ProductPage = () => {
     const firstVariant = product.variants?.[0] || null;
     setSelectedVariant(firstVariant);
 
-    const variantImage = firstVariant?.product_image;
     const images = [
-      variantImage,
+      firstVariant?.product_image,
       ...[product.image1, product.image2, product.image3, product.image4].filter(Boolean),
     ];
-
     setGalleryImages(images);
-    setMainImage(variantImage || product.image1 || "");
+    setMainImage(firstVariant?.product_image || product.image1 || "");
 
+    // Map cart quantities per variant
     const map = {};
     cartItems.forEach((item) => {
       const vid = item.selectedVariant?.variantId || item.productId;
@@ -52,21 +45,24 @@ const ProductPage = () => {
     setQtyMap(map);
   }, [product, cartItems]);
 
-  if (!product) {
-    return (
-      <div className="flex justify-center items-center h-80 text-gray-500 text-lg">
-        Product not found
-      </div>
-    );
-  }
+  if (!product) return <div className="text-center mt-20">Product not found</div>;
 
   const variantStock = selectedVariant?.stock || product.total_stock || 0;
   const isOutOfStock = variantStock <= 0;
-  const inWishlist = wishlistItems.some((item) => item.id === product.id);
   const qty = selectedVariant ? qtyMap[selectedVariant.variantId] || 0 : 0;
+
+  // ✅ Check wishlist per product + variant
+  const inWishlist = selectedVariant
+    ? wishlistItems.some(
+        (item) =>
+          item.id === product.id &&
+          item.selectedVariant?.variantId === selectedVariant.variantId
+      )
+    : false;
 
   const handleVariantSelect = (variant) => {
     setSelectedVariant(variant);
+
     const images = [
       variant.product_image,
       ...[product.image1, product.image2, product.image3, product.image4].filter(Boolean),
@@ -75,13 +71,57 @@ const ProductPage = () => {
     setMainImage(variant.product_image || product.image1 || "");
   };
 
+
+  const handleBuyNow = () => {
+  if (!selectedVariant || isOutOfStock) return;
+
+  dispatch(
+    setSingleCheckoutItem({
+      productId: product.id,
+      name: product.name,
+      quantity: 1,
+
+      // ✅ IMPORTANT: VARIANT IMAGE FIRST
+      image:
+        selectedVariant.product_image ||
+        selectedVariant.variant_image ||
+        product.image1,
+
+      price: selectedVariant.price || product.price,
+
+      selectedVariant: {
+        variantId: selectedVariant.variantId,
+        variant: selectedVariant.label || selectedVariant.variant,
+        price: selectedVariant.price || product.price,
+        stock: selectedVariant.stock,
+
+        // ✅ THIS FIXES YOUR IMAGE ISSUE
+        product_image:
+          selectedVariant.product_image ||
+          selectedVariant.variant_image ||
+          product.image1,
+
+        variant_image: selectedVariant.variant_image,
+      },
+    })
+  );
+
+  navigate("/check-out?mode=single");
+};
+
+
   const handleAdd = () => {
     if (!selectedVariant) return;
 
+    const currentQty = qtyMap[selectedVariant.variantId] || 0;
+    if (currentQty >= variantStock) return;
+
     setQtyMap((prev) => ({
       ...prev,
-      [selectedVariant.variantId]: (prev[selectedVariant.variantId] || 0) + 1,
+      [selectedVariant.variantId]: currentQty + 1,
     }));
+
+    
 
     dispatch(
       addToCart({
@@ -95,6 +135,7 @@ const ProductPage = () => {
           variant_image: selectedVariant.variant_image,
           product_image: selectedVariant.product_image || product.image1,
           price: selectedVariant.price || product.price,
+          stock: selectedVariant.stock,
         },
       })
     );
@@ -113,7 +154,15 @@ const ProductPage = () => {
     dispatch({ type: "cart/decreaseQuantity", payload: selectedVariant.variantId });
   };
 
-  const handleWishlistToggle = () => dispatch(toggleWishlist(product));
+  const handleWishlistToggle = () => {
+    if (!selectedVariant) return;
+
+    if (inWishlist) {
+      dispatch(removeFromWishlist({ id: product.id, selectedVariant }));
+    } else {
+      dispatch(addToWishlist({ ...product, selectedVariant }));
+    }
+  };
 
   const handleShare = () => {
     const url = `${window.location.origin}/product/${product.id}`;
@@ -121,90 +170,18 @@ const ProductPage = () => {
     alert("Product link copied!");
   };
 
-  const toggleSection = (index) => setOpenIndex(openIndex === index ? null : index);
-
-  const openZoom = (index) => {
-    setZoomIndex(index);
-    setZoomScale(1);
-    setIsZoomOpen(true);
-  };
-
-  const nextZoom = () => setZoomIndex((prev) => (prev + 1) % galleryImages.length);
-  const prevZoom = () =>
-    setZoomIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
-
-  // Touch handlers for swipe & pinch
-  const handleTouchStart = (e) => {
-    if (e.touches.length === 1) {
-      setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() });
-    } else if (e.touches.length === 2) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      setTouchStart({ dist, scale: zoomScale });
-    }
-  };
-
-  const handleTouchMove = (e) => {
-    if (!touchStart) return;
-    if (e.touches.length === 2) {
-      // pinch zoom
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const scale = (dist / touchStart.dist) * touchStart.scale;
-      setZoomScale(Math.min(Math.max(scale, 1), 3));
-    }
-  };
-
-  const handleTouchEnd = (e) => {
-    if (!touchStart) return;
-    if (touchStart.x !== undefined && e.changedTouches.length === 1) {
-      const dx = e.changedTouches[0].clientX - touchStart.x;
-      if (dx > 50) prevZoom();
-      else if (dx < -50) nextZoom();
-    }
-    setTouchStart(null);
-  };
-
-  const detailsSections = [
-    {
-      title: "Description",
-      content: (
-        <div className="space-y-4">
-          {product.description_image && (
-            <img
-              src={product.description_image}
-              alt="Description"
-              className="mx-auto rounded-2xl shadow-lg"
-            />
-          )}
-          <p className="text-gray-700">{product.description || "N/A"}</p>
-        </div>
-      ),
-    },
-    { title: "How To Use", content: product.how_to_use || "N/A" },
-    { title: "Ingredients", content: product.ingredients || "N/A" },
-    { title: "Additional Details", content: product.features || "N/A" },
-    { title: "Manufacturer & Importer", content: product.manufacturer_importer || "N/A" },
-  ];
-
   return (
-    <div className="max-w-7xl mx-auto p-6 sm:p-10 mt-12">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+    <div className="max-w-7xl mx-auto p-4 sm:p-10 mt-12 space-y-12">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12">
         {/* IMAGE SECTION */}
         <div className="flex flex-col items-center">
           <div className="relative w-full max-w-lg">
             <img
               src={mainImage}
               alt={product.name}
-              className="w-full rounded-2xl shadow-xl object-cover cursor-zoom-in"
-              onClick={() => openZoom(galleryImages.indexOf(mainImage))}
+              className="w-full rounded-2xl shadow-xl object-cover cursor-pointer hover:scale-105 transition-transform"
             />
 
-            {/* SHARE + WISHLIST */}
             <div className="absolute top-3 right-3 flex gap-2">
               <button
                 onClick={handleShare}
@@ -226,74 +203,61 @@ const ProductPage = () => {
             </div>
           </div>
 
-          {/* THUMBNAILS */}
           <div className="flex gap-3 mt-5 overflow-x-auto">
             {galleryImages.map((img, idx) => (
               <img
                 key={idx}
                 src={img}
                 alt=""
-                onClick={() => {
-                  setMainImage(img);
-                  openZoom(idx);
-                }}
+                onClick={() => setMainImage(img)}
                 className={`w-20 h-20 rounded-lg cursor-pointer ring-2 ${
                   mainImage === img ? "ring-[#03619E]" : "ring-transparent"
-                }`}
+                } hover:ring-[#03619E]`}
               />
             ))}
           </div>
         </div>
 
         {/* INFO SECTION */}
-        <div>
-          <h1 className="text-5xl font-extrabold mb-2">{product.name}</h1>
-
-          <p className="text-gray-400 mb-1">
-            {product.category_name} • {product.subcategory_name}
-          </p>
+        <div className="space-y-4">
+          <h1 className="text-4xl sm:text-5xl font-extrabold">{product.name}</h1>
+          <p className="text-gray-400">{product.category_name} • {product.subcategory_name}</p>
 
           {selectedVariant && (
-            <p className="text-sm text-gray-600 mb-2">
-              Selected Variant:
-              <span className="ml-1 font-semibold text-gray-800">
-                {selectedVariant.label || selectedVariant.variant}
-              </span>
+            <p className="text-sm text-gray-600">
+              Selected Variant:{" "}
+              <span className="font-semibold text-gray-800">{selectedVariant.label || selectedVariant.variant}</span>
             </p>
           )}
 
-          <p className="text-3xl font-bold text-[#03619E] mb-6">
+          <p className="text-3xl font-bold text-[#03619E] mt-2">
             ₹{parseFloat(selectedVariant?.price || product.price).toFixed(2)}
           </p>
 
-          {/* VARIANTS */}
-          <div className="flex gap-3 mb-6 flex-wrap">
+          <div className="flex gap-3 flex-wrap mt-4">
             {product.variants?.map((v) => (
               <button
                 key={v.variantId}
                 onClick={() => handleVariantSelect(v)}
-                className={`h-12 w-12 rounded-full border-2 overflow-hidden ${
+                className={`h-12 w-12 rounded-full border-2 overflow-hidden transition ${
                   selectedVariant?.variantId === v.variantId
                     ? "ring-2 ring-[#03619E]"
-                    : ""
+                    : "hover:ring-[#03619E]"
                 }`}
               >
-                <img
-                  src={v.variant_image || v.product_image}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
+                <img src={v.variant_image || v.product_image} alt="" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
 
-          {/* CART */}
-          <div className="flex gap-3 mb-4">
+          <div className="flex gap-3 mt-4 items-center">
             {qty === 0 ? (
               <button
                 onClick={handleAdd}
                 disabled={isOutOfStock}
-                className="flex-1 h-12 border rounded-xl flex items-center justify-center gap-2"
+                className={`flex-1 h-12 border rounded-xl flex items-center justify-center gap-2 font-medium hover:bg-gray-100 transition ${
+                  isOutOfStock ? "cursor-not-allowed opacity-50" : ""
+                }`}
               >
                 <FaShoppingCart /> Add to Cart
               </button>
@@ -305,96 +269,23 @@ const ProductPage = () => {
               </div>
             )}
 
-            <button
-              disabled={isOutOfStock}
-              className="flex-1 h-12 rounded-xl bg-[#03619E] text-white flex items-center justify-center gap-2"
-            >
-              <FaBolt /> Buy Now
-            </button>
+           <button
+  onClick={handleBuyNow}
+  disabled={isOutOfStock}
+  className={`flex-1 h-12 rounded-xl bg-[#03619E] text-white flex items-center justify-center gap-2 font-medium hover:bg-[#034a6f] transition ${
+    isOutOfStock ? "cursor-not-allowed opacity-50" : ""
+  }`}
+>
+  <FaBolt /> Buy Now
+</button>
+
           </div>
 
-          <p className="text-sm">
-            Stock:{" "}
-            <span className={isOutOfStock ? "text-red-500" : "text-green-600"}>
-              {isOutOfStock ? "Out of Stock" : `${variantStock} available`}
-            </span>
+          <p className={`text-sm font-medium ${isOutOfStock ? "text-red-500" : "text-green-600"}`}>
+            {isOutOfStock ? "Out of Stock" : `${variantStock} available`}
           </p>
         </div>
       </div>
-
-      {/* DETAILS */}
-      <div className="mt-12 max-w-5xl mx-auto space-y-4">
-        {detailsSections.map((section, index) => (
-          <div
-            key={index}
-            className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300"
-          >
-            <button
-              onClick={() => toggleSection(index)}
-              className="w-full px-6 py-4 flex justify-between items-center font-semibold text-gray-800 text-lg hover:bg-gray-50 transition-colors duration-200"
-            >
-              <span>{section.title}</span>
-              <span
-                className={`text-2xl font-bold transform transition-transform duration-300 ${
-                  openIndex === index ? "rotate-45" : "rotate-0"
-                }`}
-              >
-                +
-              </span>
-            </button>
-
-            <div
-              className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${
-                openIndex === index ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
-              }`}
-            >
-              <div className="px-6 pb-6 text-gray-700 text-base">{section.content}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ZOOM CAROUSEL */}
-      {isZoomOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center touch-none"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          <button
-            onClick={() => setIsZoomOpen(false)}
-            className="absolute top-5 right-5 text-white text-3xl font-bold"
-          >
-            &times;
-          </button>
-
-          <button
-            onClick={prevZoom}
-            className="absolute left-5 text-white text-4xl font-bold"
-          >
-            ‹
-          </button>
-
-          <div className="max-w-3xl max-h-[90vh] flex items-center justify-center overflow-hidden">
-            <img
-              ref={zoomRef}
-              src={galleryImages[zoomIndex]}
-              alt=""
-              className="object-contain"
-              style={{ transform: `scale(${zoomScale})` }}
-              draggable={false}
-            />
-          </div>
-
-          <button
-            onClick={nextZoom}
-            className="absolute right-5 text-white text-4xl font-bold"
-          >
-            ›
-          </button>
-        </div>
-      )}
     </div>
   );
 };

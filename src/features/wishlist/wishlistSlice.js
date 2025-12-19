@@ -1,35 +1,38 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-const storedWishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
+const initialState = {
+  items: [],
+};
 
 const wishlistSlice = createSlice({
   name: "wishlist",
-  initialState: {
-    items: storedWishlist,
-  },
+  initialState,
   reducers: {
-    toggleWishlist: (state, action) => {
-      const product = action.payload;
-      const exists = state.items.find((item) => item.id === product.id);
-      if (exists) {
-        state.items = state.items.filter((item) => item.id !== product.id);
-      } else {
-        state.items.push(product);
+    addToWishlist: (state, action) => {
+      const { id, selectedVariant } = action.payload;
+      const exists = state.items.some(
+        (item) => item.id === id && item.selectedVariant?.variantId === selectedVariant?.variantId
+      );
+
+      if (!exists) {
+        state.items.push(action.payload);
       }
-      localStorage.setItem("wishlist", JSON.stringify(state.items));
     },
+
     removeFromWishlist: (state, action) => {
-      state.items = state.items.filter((item) => item.id !== action.payload);
-      localStorage.setItem("wishlist", JSON.stringify(state.items));
+      const { id, selectedVariant } = action.payload;
+      state.items = state.items.filter(
+        (item) =>
+          !(item.id === id && item.selectedVariant?.variantId === selectedVariant?.variantId)
+      );
     },
+
     clearWishlist: (state) => {
       state.items = [];
-      localStorage.removeItem("wishlist");
     },
   },
 });
 
-export const { toggleWishlist, removeFromWishlist, clearWishlist } =
-  wishlistSlice.actions;
+export const { addToWishlist, removeFromWishlist, clearWishlist } = wishlistSlice.actions;
 
 export default wishlistSlice.reducer;

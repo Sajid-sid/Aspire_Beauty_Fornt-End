@@ -17,6 +17,7 @@ import { addToCart } from "../features/cart/cartSlice";
 
 import ProductCard from "../components/ProductCard";
 import ScrollContainer from "../components/ScrollContainer";
+import { setSingleCheckoutItem } from "../features/checkout/checkoutSlice";
 
 const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -88,6 +89,11 @@ const Home = () => {
   const handleAddToCart = (cartItem) => {
     dispatch(addToCart(cartItem));
   };
+
+   const handleBuyNow = (product) => {
+      dispatch(setSingleCheckoutItem({ ...product, quantity: 1 }));
+      navigate("/check-out?mode=single");
+    };
 
   return (
     <div className="min-h-screen bg-white">
@@ -216,6 +222,7 @@ const Home = () => {
                 <ProductCard
                   product={product}
                   addToCart={handleAddToCart}
+                  buyNow={handleBuyNow}
                 />
               </div>
             ))}
