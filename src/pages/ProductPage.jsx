@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { addToWishlist, removeFromWishlist } from "../features/wishlist/wishlistSlice";
 import { addToCart } from "../features/cart/cartSlice";
-import { FaHeart, FaRegHeart, FaShoppingCart, FaBolt } from "react-icons/fa";
 import { setSingleCheckoutItem } from "../features/checkout/checkoutSlice";
+import { FaHeart, FaRegHeart, FaShoppingCart, FaBolt } from "react-icons/fa";
 import { FiShare2 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
 
 const ProductPage = () => {
   const { id } = useParams();
@@ -18,10 +17,15 @@ const ProductPage = () => {
   const cartItems = useSelector((state) => state.cart.items);
 
   const product = products.find((p) => p.id === parseInt(id));
+
   const [mainImage, setMainImage] = useState("");
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [qtyMap, setQtyMap] = useState({});
   const [galleryImages, setGalleryImages] = useState([]);
+
+  // 🔥 Carousel states
+  const [showCarousel, setShowCarousel] = useState(false);
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   useEffect(() => {
     if (!product) return;
@@ -33,10 +37,10 @@ const ProductPage = () => {
       firstVariant?.product_image,
       ...[product.image1, product.image2, product.image3, product.image4].filter(Boolean),
     ];
+
     setGalleryImages(images);
     setMainImage(firstVariant?.product_image || product.image1 || "");
 
-    // Map cart quantities per variant
     const map = {};
     cartItems.forEach((item) => {
       const vid = item.selectedVariant?.variantId || item.productId;
@@ -51,7 +55,6 @@ const ProductPage = () => {
   const isOutOfStock = variantStock <= 0;
   const qty = selectedVariant ? qtyMap[selectedVariant.variantId] || 0 : 0;
 
-  // ✅ Check wishlist per product + variant
   const inWishlist = selectedVariant
     ? wishlistItems.some(
         (item) =>
@@ -67,48 +70,34 @@ const ProductPage = () => {
       variant.product_image,
       ...[product.image1, product.image2, product.image3, product.image4].filter(Boolean),
     ];
+
     setGalleryImages(images);
     setMainImage(variant.product_image || product.image1 || "");
   };
 
-
   const handleBuyNow = () => {
-  if (!selectedVariant || isOutOfStock) return;
+    if (!selectedVariant || isOutOfStock) return;
 
-  dispatch(
-    setSingleCheckoutItem({
-      productId: product.id,
-      name: product.name,
-      quantity: 1,
-
-      // ✅ IMPORTANT: VARIANT IMAGE FIRST
-      image:
-        selectedVariant.product_image ||
-        selectedVariant.variant_image ||
-        product.image1,
-
-      price: selectedVariant.price || product.price,
-
-      selectedVariant: {
-        variantId: selectedVariant.variantId,
-        variant: selectedVariant.label || selectedVariant.variant,
+    dispatch(
+      setSingleCheckoutItem({
+        productId: product.id,
+        name: product.name,
+        quantity: 1,
+        image: selectedVariant.product_image || product.image1,
         price: selectedVariant.price || product.price,
-        stock: selectedVariant.stock,
+        selectedVariant: {
+          variantId: selectedVariant.variantId,
+          variant: selectedVariant.label || selectedVariant.variant,
+          price: selectedVariant.price || product.price,
+          stock: selectedVariant.stock,
+          product_image: selectedVariant.product_image || product.image1,
+          variant_image: selectedVariant.variant_image,
+        },
+      })
+    );
 
-        // ✅ THIS FIXES YOUR IMAGE ISSUE
-        product_image:
-          selectedVariant.product_image ||
-          selectedVariant.variant_image ||
-          product.image1,
-
-        variant_image: selectedVariant.variant_image,
-      },
-    })
-  );
-
-  navigate("/check-out?mode=single");
-};
-
+    navigate("/check-out?mode=single");
+  };
 
   const handleAdd = () => {
     if (!selectedVariant) return;
@@ -120,8 +109,6 @@ const ProductPage = () => {
       ...prev,
       [selectedVariant.variantId]: currentQty + 1,
     }));
-
-    
 
     dispatch(
       addToCart({
@@ -172,28 +159,26 @@ const ProductPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-10 mt-12 space-y-12">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+
         {/* IMAGE SECTION */}
         <div className="flex flex-col items-center">
           <div className="relative w-full max-w-lg">
             <img
               src={mainImage}
               alt={product.name}
-              className="w-full rounded-2xl shadow-xl object-cover cursor-pointer hover:scale-105 transition-transform"
+              onClick={() => {
+                setCarouselIndex(galleryImages.indexOf(mainImage));
+                setShowCarousel(true);
+              }}
+              className="w-full rounded-2xl shadow-xl object-cover cursor-pointer hover:scale-105 transition"
             />
 
             <div className="absolute top-3 right-3 flex gap-2">
-              <button
-                onClick={handleShare}
-                className="p-2 bg-white/90 border rounded-full shadow hover:scale-110 transition"
-              >
+              <button onClick={handleShare} className="p-2 bg-white/90 rounded-full shadow">
                 <FiShare2 className="w-5 h-5 text-[#03619E]" />
               </button>
-
-              <button
-                onClick={handleWishlistToggle}
-                className="p-2 bg-white/90 border rounded-full shadow hover:scale-110 transition"
-              >
+              <button onClick={handleWishlistToggle} className="p-2 bg-white/90 rounded-full shadow">
                 {inWishlist ? (
                   <FaHeart className="w-5 h-5 text-red-500" />
                 ) : (
@@ -208,11 +193,10 @@ const ProductPage = () => {
               <img
                 key={idx}
                 src={img}
-                alt=""
                 onClick={() => setMainImage(img)}
                 className={`w-20 h-20 rounded-lg cursor-pointer ring-2 ${
                   mainImage === img ? "ring-[#03619E]" : "ring-transparent"
-                } hover:ring-[#03619E]`}
+                }`}
               />
             ))}
           </div>
@@ -220,44 +204,35 @@ const ProductPage = () => {
 
         {/* INFO SECTION */}
         <div className="space-y-4">
-          <h1 className="text-4xl sm:text-5xl font-extrabold">{product.name}</h1>
-          <p className="text-gray-400">{product.category_name} • {product.subcategory_name}</p>
+          <h1 className="text-4xl font-extrabold">{product.name}</h1>
+          <p className="text-gray-400">
+            {product.category_name} • {product.subcategory_name}
+          </p>
 
-          {selectedVariant && (
-            <p className="text-sm text-gray-600">
-              Selected Variant:{" "}
-              <span className="font-semibold text-gray-800">{selectedVariant.label || selectedVariant.variant}</span>
-            </p>
-          )}
-
-          <p className="text-3xl font-bold text-[#03619E] mt-2">
+          <p className="text-3xl font-bold text-[#03619E]">
             ₹{parseFloat(selectedVariant?.price || product.price).toFixed(2)}
           </p>
 
-          <div className="flex gap-3 flex-wrap mt-4">
+          <div className="flex gap-3 flex-wrap">
             {product.variants?.map((v) => (
               <button
                 key={v.variantId}
                 onClick={() => handleVariantSelect(v)}
-                className={`h-12 w-12 rounded-full border-2 overflow-hidden transition ${
-                  selectedVariant?.variantId === v.variantId
-                    ? "ring-2 ring-[#03619E]"
-                    : "hover:ring-[#03619E]"
+                className={`h-12 w-12 rounded-full border overflow-hidden ${
+                  selectedVariant?.variantId === v.variantId ? "ring-2 ring-[#03619E]" : ""
                 }`}
               >
-                <img src={v.variant_image || v.product_image} alt="" className="w-full h-full object-cover" />
+                <img src={v.variant_image || v.product_image} className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
 
-          <div className="flex gap-3 mt-4 items-center">
+          <div className="flex gap-3 mt-4">
             {qty === 0 ? (
               <button
                 onClick={handleAdd}
                 disabled={isOutOfStock}
-                className={`flex-1 h-12 border rounded-xl flex items-center justify-center gap-2 font-medium hover:bg-gray-100 transition ${
-                  isOutOfStock ? "cursor-not-allowed opacity-50" : ""
-                }`}
+                className="flex-1 h-12 border rounded-xl flex items-center justify-center gap-2"
               >
                 <FaShoppingCart /> Add to Cart
               </button>
@@ -269,16 +244,13 @@ const ProductPage = () => {
               </div>
             )}
 
-           <button
-  onClick={handleBuyNow}
-  disabled={isOutOfStock}
-  className={`flex-1 h-12 rounded-xl bg-[#03619E] text-white flex items-center justify-center gap-2 font-medium hover:bg-[#034a6f] transition ${
-    isOutOfStock ? "cursor-not-allowed opacity-50" : ""
-  }`}
->
-  <FaBolt /> Buy Now
-</button>
-
+            <button
+              onClick={handleBuyNow}
+              disabled={isOutOfStock}
+              className="flex-1 h-12 rounded-xl bg-[#03619E] text-white flex items-center justify-center gap-2"
+            >
+              <FaBolt /> Buy Now
+            </button>
           </div>
 
           <p className={`text-sm font-medium ${isOutOfStock ? "text-red-500" : "text-green-600"}`}>
@@ -286,6 +258,45 @@ const ProductPage = () => {
           </p>
         </div>
       </div>
+
+      {/* 🔥 IMAGE CAROUSEL MODAL */}
+      {showCarousel && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
+          <button
+            onClick={() => setShowCarousel(false)}
+            className="absolute top-5 right-6 text-white text-3xl"
+          >
+            ✕
+          </button>
+
+          <button
+            onClick={() =>
+              setCarouselIndex(
+                carouselIndex === 0 ? galleryImages.length - 1 : carouselIndex - 1
+              )
+            }
+            className="absolute left-5 text-white text-4xl"
+          >
+            ‹
+          </button>
+
+          <img
+            src={galleryImages[carouselIndex]}
+            className="max-h-[85vh] max-w-[90vw] rounded-xl object-contain"
+          />
+
+          <button
+            onClick={() =>
+              setCarouselIndex(
+                carouselIndex === galleryImages.length - 1 ? 0 : carouselIndex + 1
+              )
+            }
+            className="absolute right-5 text-white text-4xl"
+          >
+            ›
+          </button>
+        </div>
+      )}
     </div>
   );
 };
