@@ -1,21 +1,26 @@
 import { io } from "socket.io-client";
 
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL;
 
-const socket = io(import.meta.env.VITE_BACKEND_URL, {
-  transports: ["websocket"],
+console.log("Connecting socket to:", SOCKET_URL);
+
+const socket = io(SOCKET_URL, {
+  transports: ["websocket"], 
   withCredentials: true,
+  autoConnect: true,
 });
 
-socket.on("connect", () => {
-  // console.log("Customer socket connected:", socket.id);
-});
+socket.on("connect", () =>
+  console.log("Socket connected:", socket.id)
+);
 
-socket.on("connect_error", (err) => {
-  console.error("Customer socket error:", err.message);
-});
+socket.on("connect_error", (err) =>
+  console.error("Socket error:", err.message)
+);
 
-socket.on("disconnect", (reason) => {
-  console.log("Customer socket disconnected:", reason);
-});
+socket.on("disconnect", () =>
+  console.log("Socket disconnected")
+);
 
 export default socket;
