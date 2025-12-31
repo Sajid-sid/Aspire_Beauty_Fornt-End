@@ -86,6 +86,17 @@ const Navbar = () => {
     navigate("/products");
   };
 
+  //alert message at top
+
+  const messages = [
+    "🔥 Get your amazing deals now!",
+    "🎉 Flat 50% OFF on selected products",
+    "🚚 Free delivery on all orders",
+  ];
+
+  
+
+
   /* ================= AUTH ================= */
 
   const handleLogout = () => {
@@ -126,6 +137,23 @@ const Navbar = () => {
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
+      <div className="relative bg-[#0f4c5c] overflow-hidden h-9 flex items-center">
+        <div className="marquee-track">
+          {[...messages, ...messages].map((msg, i) => (
+            <span
+              key={i}
+              className="mx-10 text-white text-sm font-semibold whitespace-nowrap"
+            >
+              {msg}
+            </span>
+          ))}
+        </div>
+      </div>
+
+
+
+
+
 
       {/* ================= DESKTOP NAV ================= */}
       <div className="hidden lg:flex max-w-7xl mx-auto px-6 py-3 items-center gap-6">
@@ -134,19 +162,21 @@ const Navbar = () => {
         </NavLink>
 
         <div className="flex gap-6 text-[#001b3d] font-medium">
-          <NavLink to="/">Home</NavLink>
-          <button onClick={handleFaceCare}>Face Care</button>
-          <button onClick={handleFaceMakeup}>Face Makeup</button>
-          <NavLink to="/products" onClick={() => dispatch(resetAll())}>
+          <NavLink to="/" className="cursor-pointer hover:text-[#ff5757] transition-colors" >Home</NavLink>
+          <button onClick={handleFaceCare} className="cursor-pointer hover:text-[#ff5757] transition-colors" >Face Care</button>
+          <button onClick={handleFaceMakeup} className="cursor-pointer hover:text-[#ff5757] transition-colors" >Face Makeup</button>
+          <NavLink to="/products" className="cursor-pointer hover:text-[#ff5757] transition-colors" onClick={() => dispatch(resetAll())}>
             Products
           </NavLink>
-          <NavLink to="/about">About</NavLink>
+          <NavLink to="/about" className="cursor-pointer hover:text-[#ff5757] transition-colors" >About</NavLink>
         </div>
 
         {/* DESKTOP SEARCH */}
         <div className="relative flex-1 max-w-lg">
-          <div className="flex items-center bg-white rounded-full shadow px-4 py-2">
-            <FaSearch className="mr-2" />
+          <div className="flex items-center bg-white rounded-full shadow px-4 py-2 border border-transparent focus-within:border-[#ff5757] transition">
+
+            <FaSearch className="mr-2 text-[#001b3d]" />
+
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -157,8 +187,9 @@ const Navbar = () => {
             {search && (
               <FaTimes
                 onClick={clearSearch}
-                className="cursor-pointer text-gray-400"
+                className="cursor-pointer text-gray-400 hover:text-[#ff5757] transition"
               />
+
             )}
           </div>
 
@@ -171,7 +202,8 @@ const Navbar = () => {
                 <button
                   key={i}
                   onClick={() => handleSearch(term)}
-                  className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                  className="block w-full px-4 py-2 text-left cursor-pointer hover:bg-[#001b3d]/10 hover:text-[#001b3d] transition"
+
                 >
                   {term}
                 </button>
@@ -184,17 +216,18 @@ const Navbar = () => {
           <div className="relative">
             {token ? (
               <>
-                <button onClick={() => setShowDropdown(!showDropdown)}>
+                <button onClick={() => setShowDropdown(!showDropdown)} className="cursor-pointer hover:opacity-80 transition"
+                >
                   {renderAvatar()}
                 </button>
                 {showDropdown && (
                   <div className="absolute right-0 mt-2 bg-white border rounded shadow w-36">
-                    <NavLink to="/account" className="block px-4 py-2">
+                    <NavLink to="/account" className="block px-4 py-2 cursor-pointer hover:bg-[#001b3d]/10 transition">
                       Account
                     </NavLink>
                     <button
                       onClick={handleLogout}
-                      className="block w-full px-4 py-2 text-left text-red-500"
+                      className="block w-full px-4 py-2 text-left text-[#ff5757] cursor-pointer hover:bg-red-50 transition"
                     >
                       Logout
                     </button>
@@ -206,7 +239,7 @@ const Navbar = () => {
             )}
           </div>
 
-          <NavLink to="/cart" className="relative">
+          <NavLink to="/cart" className="relative cursor-pointer hover:text-[#ff5757] transition" >
             <GrCart size={22} />
             {totalItems > 0 && (
               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -215,13 +248,13 @@ const Navbar = () => {
             )}
           </NavLink>
 
-          <IoNotificationsOutline size={22} />
+          <IoNotificationsOutline size={22} className="cursor-pointer hover:text-[#ff5757] transition" />
         </div>
       </div>
 
       {/* ================= MOBILE TOP BAR ================= */}
       <div className="lg:hidden flex justify-between items-center px-5 py-4">
-        <IoMenu size={30} onClick={() => setMenuOpen(true)} />
+        <IoMenu size={30} onClick={() => setMenuOpen(true)} className="cursor-pointer hover:text-[#ff5757] transition" />
 
         <img src={navLogo} className="h-12" alt="logo" />
 
@@ -230,9 +263,11 @@ const Navbar = () => {
             onClick={() => {
               setMenuOpen(true);
               setTimeout(() => mobileSearchRef.current?.focus(), 300);
+
             }}
+            className="cursor-pointer hover:text-[#ff5757] transition"
           />
-          <NavLink to="/cart" className="relative">
+          <NavLink to="/cart" className="cursor-pointer hover:text-[#ff5757] transition relative">
             <GrCart />
             {totalItems > 0 && (
               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
@@ -245,9 +280,8 @@ const Navbar = () => {
 
       {/* ================= MOBILE DRAWER ================= */}
       <div
-        className={`fixed top-0 left-0 h-full w-72 bg-white z-[999] transition-transform duration-300 ${
-          menuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed top-0 left-0 h-full w-72 bg-white z-[999] transition-transform duration-300 ${menuOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="flex justify-between items-center px-5 py-5 border-b">
           <h2 className="font-semibold">Menu</h2>
@@ -274,21 +308,21 @@ const Navbar = () => {
 
         {/* MOBILE LINKS */}
         <div className="px-6 mt-6 flex flex-col gap-4 text-lg">
-          <NavLink to="/" onClick={() => setMenuOpen(false)}>Home</NavLink>
+          <NavLink to="/" onClick={() => setMenuOpen(false)} className="cursor-pointer hover:text-[#ff5757] transition" >Home</NavLink>
 
-          <button onClick={() => { handleFaceCare(); setMenuOpen(false); }}>
+          <button onClick={() => { handleFaceCare(); setMenuOpen(false); }} className="cursor-pointer hover:text-[#ff5757] transition" >
             Face Care
           </button>
 
-          <button onClick={() => { handleFaceMakeup(); setMenuOpen(false); }}>
+          <button onClick={() => { handleFaceMakeup(); setMenuOpen(false); }} className="cursor-pointer hover:text-[#ff5757] transition" >
             Face Makeup
           </button>
 
-          <NavLink to="/products" onClick={() => setMenuOpen(false)}>
+          <NavLink to="/products" onClick={() => setMenuOpen(false)} className="cursor-pointer hover:text-[#ff5757] transition" >
             Products
           </NavLink>
 
-          <NavLink to="/about" onClick={() => setMenuOpen(false)}>
+          <NavLink to="/about" onClick={() => setMenuOpen(false)} className="cursor-pointer hover:text-[#ff5757] transition" >
             About
           </NavLink>
 

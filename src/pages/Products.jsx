@@ -20,9 +20,9 @@ const Products = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { items: products = [], loading } = useSelector(
-    (state) => state.products
-  );
+ const { products = [], loading } = useSelector(
+  (state) => state.products
+);
 
   const { category, subcategory, priceRange, sort, searchTerm } = useSelector(
     (state) => state.filters

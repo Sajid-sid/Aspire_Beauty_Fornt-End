@@ -16,3 +16,23 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+
+
+/* for navbar scroll effect */
+@keyframes marquee-full-ltr {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-full-ltr 15s linear infinite;
+}
+
+

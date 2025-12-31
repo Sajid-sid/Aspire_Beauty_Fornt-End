@@ -20,6 +20,7 @@ import ContactUs from './pages/ContactUs.jsx'
 import ReturnsRefunds from './pages/ReturnsRefunds.jsx'
 import AboutUs from './pages/AboutUs.jsx'
 import ScrollToTop from './components/ScrollToTop.jsx'
+import RealtimeProductListener from './socketUpdates/ProductsProvider.jsx'
 
 function App() {
   return (
@@ -27,7 +28,7 @@ function App() {
    
       <ScrollToTop />
         <Navbar />
-      
+      <RealtimeProductListener /> 
       <main className="flex-grow">
         <Routes>
           <Route path='/' element={<Home />} />

@@ -33,9 +33,11 @@ const Home = () => {
     (state) => state.subcategories
   );
 
-  const { items: products, loading: productLoading } = useSelector(
-    (state) => state.products
-  );
+  const { products = [], loading: productLoading } = useSelector(
+  (state) => state.products
+);
+
+
 
   const { data: banner } = useSelector((state) => state.banner);
 
