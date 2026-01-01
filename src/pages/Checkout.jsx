@@ -30,7 +30,14 @@ const Checkout = () => {
   const pageMode = query.get("mode") || mode;
   const checkoutItems = pageMode === "single" && singleItem ? [singleItem] : items;
 
-  const subtotal = checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const getItemPrice = (item) =>
+    item.selectedVariant?.price ?? item.price ?? 0;
+
+  const subtotal = checkoutItems.reduce(
+    (sum, item) => sum + getItemPrice(item) * item.quantity,
+    0
+  );
+
   const deliveryFee = 50;
   const grandTotal = subtotal + deliveryFee;
 
@@ -124,67 +131,69 @@ const Checkout = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-const handlePlaceOrder = async () => {
-  // ✅ Required validations
-  if (!form.fullname?.trim()) return alert("Please enter full name.");
-  if (!form.mobile?.trim()) return alert("Please enter mobile number.");
-  if (!form.address?.trim() || !form.city?.trim() || !form.pincode?.trim()) {
-    return alert("Please fill all required fields.");
-  }
+  const handlePlaceOrder = async () => {
+    // ✅ Required validations
+    if (!form.fullname?.trim()) return alert("Please enter full name.");
+    if (!form.mobile?.trim()) return alert("Please enter mobile number.");
+    if (!form.address?.trim() || !form.city?.trim() || !form.pincode?.trim()) {
+      return alert("Please fill all required fields.");
+    }
 
-  const orderData = {
-    userid: form.userid || 0,
-    fullName: form.fullname || "Guest",
-    phone: form.mobile || "0000000000",
-    email: form.email || "",
-    address: form.address,
-    landmark: form.landmark || null,
-    addressType: form.addressType || "Home",
-    city: form.city,
-    state: form.state,
-    pincode: form.pincode,
-    latitude: form.latitude || null,
-    longitude: form.longitude || null,
-    totalAmount: grandTotal,
-    items: checkoutItems.map((item) => ({
-      productId: item.productId || item.id,
-      variantId: item.variantId || null,
-      variantName: item.variantName || null,
-      variantImage: item.variantImage || null,
-      productName: item.productName || item.name || "Unknown Product",
-      price: item.price || 0,
-      quantity: item.quantity || 1,
-      productImage: item.productImage || item.image1 || null,
-    })),
+    const orderData = {
+      userid: form.userid || 0,
+      fullName: form.fullname || "Guest",
+      phone: form.mobile || "0000000000",
+      email: form.email || "",
+      address: form.address,
+      landmark: form.landmark || null,
+      addressType: form.addressType || "Home",
+      city: form.city,
+      state: form.state,
+      pincode: form.pincode,
+      latitude: form.latitude || null,
+      longitude: form.longitude || null,
+      totalAmount: grandTotal,
+      items: checkoutItems.map((item) => ({
+        productId: item.productId || item.id,
+        variantId: item.variantId || null,
+        variantName: item.variantName || null,
+        variantImage: item.variantImage || null,
+        productName: item.productName || item.name || "Unknown Product",
+      price: getItemPrice(item),
+
+        quantity: item.quantity || 1,
+        productImage: item.productImage || item.image1 || null,
+      })),
+    };
+
+    try {
+      const result = await dispatch(placeOrder(orderData));
+
+      if (result.meta.requestStatus === "fulfilled") {
+        // ✅ Remove items from cart/localStorage
+        if (pageMode === "single" && singleItem) {
+          const variantId = singleItem.selectedVariant?.variantId || singleItem.id;
+          dispatch(removeFromCart(variantId));
+          dispatch(clearSingleCheckoutItem());
+        } else {
+          // Remove all items being checked out
+          checkoutItems.forEach((i) => {
+            const variantId = i.selectedVariant?.variantId || i.id;
+            dispatch(removeFromCart(variantId));
+          });
+        }
+
+        // ✅ Navigate to order status page
+        navigate(`/order-status?orderId=${result.payload.orderId}`);
+      } else {
+        alert("Order failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("handlePlaceOrder error:", err);
+      alert("Something went wrong. Please try again.");
+    }
   };
 
-  try {
-    const result = await dispatch(placeOrder(orderData));
-
-    if (result.meta.requestStatus === "fulfilled") {
-      // ✅ Remove items from cart/localStorage
-      if (pageMode === "single" && singleItem) {
-        const variantId = singleItem.selectedVariant?.variantId || singleItem.id;
-        dispatch(removeFromCart(variantId));
-        dispatch(clearSingleCheckoutItem());
-      } else {
-        // Remove all items being checked out
-        checkoutItems.forEach((i) => {
-          const variantId = i.selectedVariant?.variantId || i.id;
-          dispatch(removeFromCart(variantId));
-        });
-      }
-
-      // ✅ Navigate to order status page
-      navigate(`/order-status?orderId=${result.payload.orderId}`);
-    } else {
-      alert("Order failed. Please try again.");
-    }
-  } catch (err) {
-    console.error("handlePlaceOrder error:", err);
-    alert("Something went wrong. Please try again.");
-  }
-};
 
 
 
@@ -286,7 +295,10 @@ const handlePlaceOrder = async () => {
                   <p className="font-semibold">{item.name}</p>
                   <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                 </div>
-                <p className="font-semibold">₹{item.price * item.quantity}</p>
+                <p className="font-semibold">
+                  ₹{getItemPrice(item) * item.quantity}
+                </p>
+
               </div>
             ))}
           </div>

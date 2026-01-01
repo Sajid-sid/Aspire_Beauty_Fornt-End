@@ -3,8 +3,8 @@ import { createSlice } from "@reduxjs/toolkit";
 const checkoutSlice = createSlice({
   name: "checkout",
   initialState: {
-    singleItem: null,      // stores Buy Now product
-    mode: "cart",          // "cart" or "single"
+    singleItem: null,      
+    mode: "cart",          
   },
 
   reducers: {

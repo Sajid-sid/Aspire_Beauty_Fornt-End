@@ -277,7 +277,7 @@ const ProductCard = ({ product, buyNow }) => {
         <button
           onClick={handleBuyNow}
           disabled={variantStock === 0}
-          className={`flex-1 h-10 text-sm font-medium rounded-lg
+          className={`flex-1 h-10 text-sm font-medium rounded-lg flex items-center justify-center
             ${variantStock === 0
               ? "bg-zinc-300 text-zinc-500"
               : "bg-zinc-900 text-white hover:bg-zinc-800"
