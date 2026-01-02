@@ -107,7 +107,7 @@ updateVariantRealtime: (state, action) => {
 addVariantRealtime: (state, action) => {
   let { productId, variant } = action.payload;
 
-  productId = Number(productId); // 🔥 FIX
+  productId = Number(productId); 
 
   const product = state.products.find(p => Number(p.id) === productId);
   if (!product) return;
@@ -161,7 +161,7 @@ deleteVariantRealtime: (state, action) => {
     product.variants.map(v => v.variantId)
   );
 
-  // 🔁 recalc price
+  //  recalc price
   if (product.variants.length > 0) {
     product.price = Math.min(
       ...product.variants.map(v => Number(v.price))

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FaShoppingCart, FaBolt, FaShareAlt } from "react-icons/fa";
+import { FaShoppingCart, FaBolt, FaShareAlt, FaKickstarter } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart, decreaseQuantity } from "../features/cart/cartSlice";
 import { useNavigate } from "react-router-dom";

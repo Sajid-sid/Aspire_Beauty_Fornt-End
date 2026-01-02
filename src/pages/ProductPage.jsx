@@ -12,18 +12,22 @@ const ProductPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const products = useSelector((state) => state.products.items || []);
+  // const products = useSelector((state) => state.products.items);
+  const products = useSelector((state) => state.products.products);
+
   const wishlistItems = useSelector((state) => state.wishlist.items);
   const cartItems = useSelector((state) => state.cart.items);
 
-  const product = products.find((p) => p.id === parseInt(id));
+  const product = products.find((p) => String(p.id) === String(id));
+
+  console.log(product);
 
   const [mainImage, setMainImage] = useState("");
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [qtyMap, setQtyMap] = useState({});
   const [galleryImages, setGalleryImages] = useState([]);
 
-  // 🔥 Carousel states
+  //  Carousel states
   const [showCarousel, setShowCarousel] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
 
@@ -57,10 +61,10 @@ const ProductPage = () => {
 
   const inWishlist = selectedVariant
     ? wishlistItems.some(
-        (item) =>
-          item.id === product.id &&
-          item.selectedVariant?.variantId === selectedVariant.variantId
-      )
+      (item) =>
+        item.id === product.id &&
+        item.selectedVariant?.variantId === selectedVariant.variantId
+    )
     : false;
 
   const handleVariantSelect = (variant) => {
@@ -194,9 +198,8 @@ const ProductPage = () => {
                 key={idx}
                 src={img}
                 onClick={() => setMainImage(img)}
-                className={`w-20 h-20 rounded-lg cursor-pointer ring-2 ${
-                  mainImage === img ? "ring-[#03619E]" : "ring-transparent"
-                }`}
+                className={`w-20 h-20 rounded-lg cursor-pointer ring-2 ${mainImage === img ? "ring-[#03619E]" : "ring-transparent"
+                  }`}
               />
             ))}
           </div>
@@ -206,7 +209,7 @@ const ProductPage = () => {
         <div className="space-y-4">
           <h1 className="text-4xl font-extrabold">{product.name}</h1>
           <p className="text-gray-400">
-            {product.category_name} • {product.subcategory_name}
+            Category : {product.category_name} • {product.subcategory_name}
           </p>
 
           <p className="text-3xl font-bold text-[#03619E]">
@@ -218,9 +221,8 @@ const ProductPage = () => {
               <button
                 key={v.variantId}
                 onClick={() => handleVariantSelect(v)}
-                className={`h-12 w-12 rounded-full border overflow-hidden ${
-                  selectedVariant?.variantId === v.variantId ? "ring-2 ring-[#03619E]" : ""
-                }`}
+                className={`h-12 w-12 rounded-full border overflow-hidden ${selectedVariant?.variantId === v.variantId ? "ring-2 ring-[#03619E]" : ""
+                  }`}
               >
                 <img src={v.variant_image || v.product_image} className="w-full h-full object-cover" />
               </button>
@@ -253,13 +255,70 @@ const ProductPage = () => {
             </button>
           </div>
 
-          <p className={`text-sm font-medium ${isOutOfStock ? "text-red-500" : "text-green-600"}`}>
-            {isOutOfStock ? "Out of Stock" : `${variantStock} available`}
-          </p>
+{/* DELIVERY & POLICY INFO */}
+<div className="mt-6 rounded-2xl border border-zinc-200 bg-gradient-to-br from-white to-zinc-50 p-5 shadow-sm space-y-4">
+
+  {/* STOCK */}
+  <div className="flex items-center justify-between text-sm">
+    <div className="flex items-center gap-2">
+      <span
+        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold
+          ${isOutOfStock
+            ? "bg-red-100 text-red-600"
+            : "bg-green-100 text-green-700"
+          }`}
+      >
+        ● {isOutOfStock ? "Out of Stock" : "In Stock"}
+      </span>
+
+      {!isOutOfStock && (
+        <span className="text-xs text-zinc-500">
+          ({variantStock} available)
+        </span>
+      )}
+    </div>
+  </div>
+
+  {/* DIVIDER */}
+  <div className="h-px bg-zinc-200" />
+
+  {/* DELIVERY */}
+  <div className="flex items-center gap-3 text-sm text-zinc-700">
+    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+      🚚
+    </span>
+    <span>
+      Delivery within <b className="text-zinc-900">7 days</b>
+    </span>
+  </div>
+
+  {/* COD */}
+  <div className="flex items-center gap-3 text-sm text-zinc-700">
+    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+      💰
+    </span>
+    <span>
+      <b className="text-zinc-900">Cash on Delivery</b> available
+    </span>
+  </div>
+
+  {/* RETURN */}
+  <div className="flex items-center gap-3 text-sm text-zinc-700">
+    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+      🔄
+    </span>
+    <span>
+      <b className="text-zinc-900">Easy Return & Refund</b> policy
+    </span>
+  </div>
+
+</div>
+
+
         </div>
       </div>
 
-      {/* 🔥 IMAGE CAROUSEL MODAL */}
+      {/*  IMAGE CAROUSEL MODAL */}
       {showCarousel && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
           <button
@@ -297,6 +356,74 @@ const ProductPage = () => {
           </button>
         </div>
       )}
+      {/* PRODUCT DETAILS */}
+<div className="mt-16 space-y-10">
+
+  {/* DESCRIPTION IMAGE */}
+  {product.description_image && (
+    <div className="w-full">
+      <img
+        src={product.description_image}
+        alt="Product description"
+        className="w-full max-h-[500px] object-cover rounded-2xl shadow"
+      />
+    </div>
+  )}
+
+  {/* DESCRIPTION */}
+  {product.description && (
+    <section>
+      <h2 className="text-2xl font-bold mb-3">Description</h2>
+      <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+        {product.description}
+      </p>
+    </section>
+  )}
+
+  {/* FEATURES */}
+  {product.features && (
+    <section>
+      <h2 className="text-2xl font-bold mb-3">Key Features</h2>
+      <ul className="list-disc pl-6 space-y-2 text-gray-700 whitespace-pre-line">
+        {product.features.split("\r\n").map((feature, idx) => (
+          <li key={idx}>{feature}</li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  {/* HOW TO USE */}
+  {product.how_to_use && (
+    <section>
+      <h2 className="text-2xl font-bold mb-3">How to Use</h2>
+      <p className="text-gray-700 whitespace-pre-line">
+        {product.how_to_use}
+      </p>
+    </section>
+  )}
+
+  {/* INGREDIENTS */}
+  {product.ingredients && (
+    <section>
+      <h2 className="text-2xl font-bold mb-3">Ingredients</h2>
+      <p className="text-gray-700 whitespace-pre-line">
+        {product.ingredients}
+      </p>
+    </section>
+  )}
+
+  {/* MANUFACTURER */}
+  {product.manufacturer_importer && (
+    <section>
+      <h2 className="text-2xl font-bold mb-3">Manufacturer / Importer</h2>
+      <p className="text-gray-700">
+        {product.manufacturer_importer}
+      </p>
+    </section>
+  )}
+
+</div>
+
     </div>
   );
 };
